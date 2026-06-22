@@ -35,8 +35,10 @@ app.use("/api/admin", adminRouter);
 app.use("/api/eval", evalRouter);
 
 const PORT = parseInt(process.env.PORT || "8080", 10);
-app.listen(PORT, () => {
-  console.log(`✅ د «پښتون مفتي» API په http://localhost:${PORT} روان دی`);
+
+// دلته مو د رېنډر دپاره 0.0.0.0 دروازه خلاصه کړه
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ د «پښتون مفتي» API په http://0.0.0.0:${PORT} روان دی`);
 });
 
 // د سرور سره يو ځای د Worker پيل کول
