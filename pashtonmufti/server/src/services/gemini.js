@@ -1,13 +1,5 @@
 // ============================================================
-// د Google Gemini خدمت
-// ============================================================
-// دوې اساسي دندي:
-//   ۱. embedText() — د text-embedding-004 سره د متن د ويکټور جوړونه.
-//   ۲. generateFatwa() — د gemini-1.5-pro سره د سختي پرامپټ پر بنسټ د فتوا
-//      جوړونه. د Hallucination د مخنيوي لپاره يوازي د context پر بنسټ.
-//
-// د 429 (Rate Limit) ايرر لپاره Exponential Backoff په embedder.js کي چلول
-// کيږي ترڅو دا فايل خپله سپک پاتي سي.
+// د Google Gemini خدمت (اصلاح سوی)
 // ============================================================
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -37,6 +29,7 @@ export async function embedText(text) {
     content: { parts: [{ text }], role: "user" },
     // د RETRIEVAL_DOCUMENT د کتاب د متن ښه ويکټورونه جوړوي.
     taskType: "RETRIEVAL_DOCUMENT",
+    outputDimensionality: 768, // دا برخه په هره غوښتنه کي د ۷۶۸ ابعادو دپاره ضروري ده
   });
 
   const vec = result?.embedding?.values;
@@ -55,15 +48,13 @@ export async function embedQuery(query) {
   const result = await model.embedContent({
     content: { parts: [{ text: query }], role: "user" },
     taskType: "RETRIEVAL_QUERY",
+    outputDimensionality: 768, // دا برخه هم د ۷۶۸ ابعادو دپاره ضروري ده
   });
   return result?.embedding?.values || [];
 }
 
 // ============================================================
 // د RAG لپاره سخت پرامپټ
-// ============================================================
-// دا پرامپټ د Hallucination مخه نيسي. ماډل يوازي او يوازي د راپورته
-// سوي context پر بنسټ ځواب ورکوي. که جواب نه وي، په زغرده يي وايي.
 // ============================================================
 const SYSTEM_PROMPT = `
 ته يو ستر اسلامي عالم او د حنفي مذهب پوه مفتي يې چي د نوم يي «پښتون مفتي» دی.
@@ -122,7 +113,7 @@ ${refsBlock}
     model: REASON_MODEL,
     systemInstruction: SYSTEM_PROMPT,
     generationConfig: {
-      temperature: 0.2,    // ټيټ حرارت — د Hallucination مخنيوی
+      temperature: 0.2,
       topP: 0.85,
       maxOutputTokens: 2048,
     },
