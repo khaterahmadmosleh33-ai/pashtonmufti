@@ -6,7 +6,8 @@
 // چمتو دی.
 
 import { useMemo, useState } from "react";
-import { goldenTests, type TestCase } from "../data/roadmap";
+import { goldenTests } from "../data/roadmap";
+import type { TestCase } from "../data/roadmap";
 import { askMufti } from "../lib/api";
 
 type TestResult = {
