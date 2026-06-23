@@ -80,4 +80,20 @@ router.post("/retry/:queueId", async (req, res) => {
   }
 });
 
+// 🔄 د ټولو بند پاته سوو کارونو خلاصول (Unlock Stuck Jobs)
+router.post("/unlock-stuck-jobs", async (_req, res) => {
+  try {
+    const { rowCount } = await pool.query(`
+      UPDATE embedding_queue
+      SET status = 'pending',
+          locked_by = NULL,
+          locked_at = NULL
+      WHERE status = 'running'
+    `);
+    res.json({ ok: true, unlocked_count: rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
