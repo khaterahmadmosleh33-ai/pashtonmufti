@@ -105,7 +105,7 @@ export default function AdminPanel() {
         </button>
       </div>
 
-      {/* د لېدنو tabs — د مشاور د لارښوونو پر بنسټ */}
+      {/* د لېدنو tabs */}
       <div className="mb-6 inline-flex gap-1 rounded-2xl border border-amber-900/15 bg-white/60 p-1">
         <button
           onClick={() => setView("workbench")}
@@ -137,10 +137,31 @@ export default function AdminPanel() {
 
 function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
   return (
-    <div className="space-y-8">{/* فلش-غلوي تړونه — د اصلي JSX برخه به ښکته ولاړ سي */}
+    <div className="space-y-10">
+      
+      {/* د حقيقي کار د اصولو پټۍ (له مخ‌پاڼي څخه راوړل سوې) */}
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { v: "۱", l: "اول يو کتاب" },
+          { v: "DB", l: "online ډيټابېس" },
+          { v: "۹", l: "د حوالې ساحې" },
+        ].map((s) => (
+          <div
+            key={s.l}
+            className="rounded-2xl border border-amber-900/15 bg-white/70 p-4 text-center shadow-sm"
+          >
+            <div className="text-2xl font-extrabold text-emerald-900">
+              {s.v}
+            </div>
+            <div className="text-xs font-semibold text-amber-900/80">
+              {s.l}
+            </div>
+          </div>
+        ))}
+      </div>
 
-      {/* د عمومي شمېرو ګريډ — يوازي د لارښوونو پر بنسټ دري حالتونه: ټول، ويکټور سوي، قطار/پاته */}
-      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+      {/* د عمومي شمېرو ګريډ */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="ټولي ټوټي"
           value={Number(stats.totalChunks).toLocaleString("ar")}
@@ -165,7 +186,7 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
       </div>
 
       {/* د Worker د حالت کارت */}
-      <div className="mb-8 grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3">
         <InfoCard
           title="د Worker حالت"
           main={
@@ -189,8 +210,37 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
         />
       </div>
 
+      {/* د حقيقي RAG جريان (له مخ‌پاڼي څخه راوړل سوی) */}
+      <div className="rounded-3xl border border-amber-900/15 bg-white/40 p-6">
+        <div className="mb-4 flex items-center justify-between text-sm text-amber-900/80">
+          <span className="text-lg font-bold text-[#0f3d2e]">د حقيقي RAG جريان</span>
+          <span className="rounded-full bg-emerald-900 px-3 py-1 text-[11px] font-bold text-amber-200">
+            server-side
+          </span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-5">
+          {[
+            ["۱", "کتاب اپلوډ", "پاک UTF-8 .txt فايل سرور ته ځي"],
+            ["۲", "فقهي چنکنګ", "کتاب/باب/فصل/مسأله پر بنسټ"],
+            ["۳", "ويکټورول", "embedding_queue + Gemini text-embedding-004"],
+            ["۴", "پوښتنه", "query embedding → pgvector `<=>` → context"],
+            ["۵", "ځواب", "Gemini يوازي د ورکړل سوو مراجعو څخه ليکي"],
+          ].map(([n, t, d]) => (
+            <div key={n} className="flex flex-col gap-3 rounded-2xl border border-amber-900/10 bg-white/80 p-4 shadow-sm">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-900 text-sm font-bold text-amber-200">
+                {n}
+              </span>
+              <div>
+                <div className="font-bold text-emerald-900">{t}</div>
+                <div className="mt-1 text-[11px] leading-relaxed text-amber-900/80">{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* د کتابونو لست */}
-      <div className="mb-10 fatwa-card rounded-2xl">
+      <div className="fatwa-card rounded-2xl">
         <div className="flex items-center justify-between border-b border-amber-900/15 px-6 py-4">
           <h3 className="text-lg font-bold text-emerald-900">
             د کتابونو د پروسس حالت
@@ -287,6 +337,30 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
           ))}
         </div>
       </div>
+
+      {/* د سيسټم ۶ خصوصيتونه (له مخ‌پاڼي څخه راوړل سوي) */}
+      <div>
+        <h3 className="mb-4 text-xl font-bold text-[#0f3d2e]">د سيسټم ځانګړتياوي</h3>
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
+          {[
+            { i: "📜", t: "د حوالې سره" },
+            { i: "🚫", t: "د Hallucination مخنيوی" },
+            { i: "🧠", t: "د فقهي چنکنګ" },
+            { i: "⚡", t: "د pgvector لټون" },
+            { i: "🛡️", t: "د 429 ايرر مخنيوی" },
+            { i: "🕌", t: "حنفي مذهب" },
+          ].map((f) => (
+            <div
+              key={f.t}
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-amber-900/10 bg-white/60 p-4 text-center shadow-sm transition-all hover:bg-white/80"
+            >
+              <div className="text-3xl">{f.i}</div>
+              <div className="text-xs font-bold text-emerald-900">{f.t}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }
