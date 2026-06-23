@@ -378,4 +378,4 @@ className="rounded-xl bg-gradient-to-br from-[#0f3d2e] to-[#14533f] px-3 py-1.5 
 </div>
 
 );
-              }
+}
