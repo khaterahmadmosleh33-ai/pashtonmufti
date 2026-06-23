@@ -16,6 +16,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"workbench" | "all">("workbench");
   const [error, setError] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
 
   const refresh = async () => {
     try {
@@ -39,6 +40,27 @@ export default function AdminPanel() {
       return () => clearInterval(t);
     }
   }, []);
+
+  // د قلف سوو کارونو د خلاصولو فنکشن
+  const handleUnlockJobs = async () => {
+    if (!window.confirm("آيا غواړی چي ټول قلف سوي او بند پاته کارونه خلاص کړی؟")) return;
+    setUnlocking(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE || "";
+      const res = await fetch(`${baseUrl}/api/admin/unlock-stuck-jobs`, { method: "POST" });
+      const data = await res.json();
+      if (data.ok) {
+        alert(`برياليتوب! ${data.unlocked_count} بند سوي کارونه بېرته خلاص سول.`);
+        refresh();
+      } else {
+        alert(`خطا: ${data.error}`);
+      }
+    } catch (e: any) {
+      alert("د سرور سره د اړيکي پر مهال خطا پېښه سوه.");
+    } finally {
+      setUnlocking(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -87,7 +109,7 @@ export default function AdminPanel() {
       />
 
       {/* د سر عنوان */}
-      <div className="mb-6 flex items-end justify-between gap-4">
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="mb-2 text-3xl font-bold text-[#0f3d2e]">
             د اډمن پينل
@@ -97,12 +119,21 @@ export default function AdminPanel() {
             د سرور پر خوا د Background Worker لخوا ترسره کيږي.
           </p>
         </div>
-        <button
-          onClick={() => setOpen(true)}
-          className="shrink-0 rounded-2xl bg-gradient-to-br from-[#0f3d2e] to-[#14533f] px-5 py-3 text-sm font-bold text-amber-100 shadow-lg"
-        >
-          ➕ نوی کتاب اپلوډ کړی
-        </button>
+        <div className="flex shrink-0 gap-3">
+          <button
+            onClick={handleUnlockJobs}
+            disabled={unlocking}
+            className="rounded-2xl bg-gradient-to-br from-orange-600 to-orange-800 px-5 py-3 text-sm font-bold text-white shadow-lg transition-all hover:from-orange-500 hover:to-orange-700 disabled:opacity-50"
+          >
+            {unlocking ? "په خلاصولو بوخت..." : "🔄 قلف سوي کارونه خلاص کړی"}
+          </button>
+          <button
+            onClick={() => setOpen(true)}
+            className="rounded-2xl bg-gradient-to-br from-[#0f3d2e] to-[#14533f] px-5 py-3 text-sm font-bold text-amber-100 shadow-lg transition-all hover:opacity-90"
+          >
+            ➕ نوی کتاب اپلوډ کړی
+          </button>
+        </div>
       </div>
 
       {/* د لېدنو tabs */}
