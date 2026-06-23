@@ -176,9 +176,15 @@ async function processOne(item) {
     }
     await saveEmbedding(item.chunk_id, vector, item.queue_id);
   } catch (err) {
+    // د 429 خطایانو لپاره ځانګړی ځنډ
+    if (err?.status === 429 || /429|rate|quota/i.test(err?.message || "")) {
+      console.warn("⚠️ سخت محدودیت: د ۵ ثانیو ځنډ...");
+      await new Promise(r => setTimeout(r, 5000));
+    }
     await recordFailure(item.queue_id, item.attempts, err);
   }
 }
+
 
 /**
  * د Worker اصلي حلقه (loop).
