@@ -1,27 +1,35 @@
 // ============================================================
 // د هايبرېډ لټون خدمت (Hybrid Retrieval)
 // ============================================================
-// د pgvector د cosine distance (`<=>`) سره يو ځای د عربي د trigram لټون
-// ترڅو معتبري نتيجي راپورته سي.
+// د pgvector د cosine similarity +
+// د عربي متن د keyword bonus سره
 // ============================================================
 
 import { pool, toVectorLiteral } from "../db/pool.js";
 
-const TOP_K = parseInt(process.env.TOP_K || "8", 10);
-const MIN_SIMILARITY = parseFloat(process.env.MIN_SIMILARITY || "0.55");
+const TOP_K = parseInt(process.env.TOP_K || "25", 10);
+const MIN_SIMILARITY = parseFloat(
+  process.env.MIN_SIMILARITY || "0.45"
+);
 
 /**
- * د هايبرېډ لټون — د ويکټور لټون + د کلمو لټون (په عربي کي).
+ * د کليدي کلمې پاکول
+ */
+function normalizeKeyword(keyword = "") {
+  return keyword.trim();
+}
+
+/**
+ * د هايبرېډ لټون
  *
- * @param {number[]} queryVector — د کاروونکي پوښتني ويکټور (۷۶۸ بُعده)
- * @param {string} [keyword]    — اختياري عربي کليدي کلمه د فلټر لپاره
+ * @param {number[]} queryVector
+ * @param {string} keyword
  * @returns {Promise<Array>}
  */
-export async function hybridSearch(queryVector, keyword) {
+export async function hybridSearch(queryVector, keyword = "") {
   const vecLiteral = toVectorLiteral(queryVector);
+  const searchKeyword = normalizeKeyword(keyword);
 
-  // د cosine similarity = 1 - cosine_distance
-  // د `<=>` اپرېټر د pgvector د cosine distance دی.
   const sql = `
     SELECT
       id,
@@ -35,23 +43,57 @@ export async function hybridSearch(queryVector, keyword) {
       fasl,
       masalah,
       hadith_number,
-      1 - (embedding <=> $1::vector) AS similarity
+
+      (
+        1 - (embedding <=> $1::vector)
+      ) AS similarity,
+
+      CASE
+        WHEN $3 <> ''
+         AND (
+           arabic_text ILIKE '%' || $3 || '%'
+           OR COALESCE(kitab,'') ILIKE '%' || $3 || '%'
+           OR COALESCE(fasl,'') ILIKE '%' || $3 || '%'
+           OR COALESCE(masalah,'') ILIKE '%' || $3 || '%'
+         )
+        THEN 0.10
+        ELSE 0
+      END AS keyword_bonus
+
     FROM chunks
     WHERE embedding IS NOT NULL
-      ${keyword ? "AND arabic_text % $3" : ""}
-    ORDER BY embedding <=> $1::vector
+
+    ORDER BY
+      (
+        (1 - (embedding <=> $1::vector))
+        +
+        CASE
+          WHEN $3 <> ''
+           AND (
+             arabic_text ILIKE '%' || $3 || '%'
+             OR COALESCE(kitab,'') ILIKE '%' || $3 || '%'
+             OR COALESCE(fasl,'') ILIKE '%' || $3 || '%'
+             OR COALESCE(masalah,'') ILIKE '%' || $3 || '%'
+           )
+          THEN 0.10
+          ELSE 0
+        END
+      ) DESC
+
     LIMIT $2
   `;
 
-  const params = keyword
-    ? [vecLiteral, TOP_K, keyword]
-    : [vecLiteral, TOP_K];
+  const { rows } = await pool.query(sql, [
+    vecLiteral,
+    TOP_K,
+    searchKeyword,
+  ]);
 
-  const { rows } = await pool.query(sql, params);
-
-  // د لږ تر لږه ورته والي پر بنسټ فلټر
   return rows
-    .filter((r) => r.similarity >= MIN_SIMILARITY)
+    .filter(
+      (r) =>
+        parseFloat(r.similarity || 0) >= MIN_SIMILARITY
+    )
     .map((r) => ({
       id: r.id,
       arabic_text: r.arabic_text,
