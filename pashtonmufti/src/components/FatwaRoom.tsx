@@ -1,5 +1,4 @@
 // د مفتي خونه — د کاروونکي او اې آی مفتي ترمنځ د خبرو اترو انټرفيس.
-// دا برخه د حقيقي Express API، PostgreSQL، pgvector، او Gemini pipeline ته تړلې ده.
 
 import { useEffect, useRef, useState } from "react";
 import { askMufti, getFatwaHistory, isLiveBackend } from "../lib/api";
@@ -27,7 +26,6 @@ export default function FatwaRoom() {
   const [error, setError] = useState<string | null>(null);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // د لومړي ځل تاريخ له سرور څخه راځي، نه له localStorage څخه.
   useEffect(() => {
     if (!isLiveBackend) return;
     getFatwaHistory(20)
@@ -56,7 +54,6 @@ export default function FatwaRoom() {
         { id: crypto.randomUUID(), fatwa: f, at: Date.now() },
         ...h,
       ]);
-      // د ښوود لپاره راز
       setTimeout(() => {
         document
           .getElementById("latest-fatwa")
@@ -135,14 +132,13 @@ export default function FatwaRoom() {
           </div>
         </div>
 
-        {/* د خطا د ښودلو پټۍ */}
         {error && (
           <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
             ⚠️ {error}
           </div>
         )}
 
-        {/* د بار وېستلو حالت */}
+        {/* د بار وېستلو ساده او عام فهمه حالت */}
         {loading && (
           <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6 text-emerald-900">
             <div className="flex items-center gap-2">
@@ -156,16 +152,15 @@ export default function FatwaRoom() {
                 style={{ animationDelay: "0.4s" }}
               />
             </div>
-            <div className="text-sm">
-              د pgvector څخه د اړوندو فقهي ټوټو لټون… (cosine similarity)
+            <div className="text-sm font-bold">
+              په معتبرو فقهي کتابونو کي لټون روان دی…
             </div>
             <div className="text-xs text-amber-900/70">
-              بيا د Gemini سره د فتوا جوړونه…
+              د ځواب په چمتو کولو کي لږ تم سی…
             </div>
           </div>
         )}
 
-        {/* د چټ تاريخ — وروستی فتوا تر ټولو پورته */}
         {history.length > 0 && !loading && (
           <div className="mt-10 space-y-12">
             {history.map((h, i) => (
