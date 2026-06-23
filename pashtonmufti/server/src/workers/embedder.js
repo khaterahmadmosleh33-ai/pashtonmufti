@@ -25,6 +25,27 @@ const WORKER_ID    = `${os.hostname()}-${process.pid}`;
 let running = false;
 
 /**
+ * د بند پاته سوو کارونو اتوماتيک خلاصول
+ */
+async function recoverStuckJobs() {
+  try {
+    const res = await pool.query(`
+      UPDATE embedding_queue
+      SET status = 'pending',
+          locked_by = NULL,
+          locked_at = NULL
+      WHERE status = 'running'
+        AND locked_at < NOW() - INTERVAL '15 minutes'
+    `);
+    if (res.rowCount > 0) {
+      console.log(`♻️ [worker] اتوماتيک رغونه: ${res.rowCount} بند پاته سوي کارونه بېرته pending سول.`);
+    }
+  } catch (err) {
+    console.error("❌ [worker] د بند سوو کارونو د خلاصولو پر مهال خطا:", err.message);
+  }
+}
+
+/**
  * د قطار څخه د لاندي پروسس وړ ټوټو راپورته کول.
  * د `FOR UPDATE SKIP LOCKED` سره ډاډ ترلاسه کوو چي دوه worker يوه ټوټه ونه پروسس کړي.
  */
@@ -185,7 +206,6 @@ async function processOne(item) {
   }
 }
 
-
 /**
  * د Worker اصلي حلقه (loop).
  */
@@ -193,6 +213,9 @@ export async function startWorker() {
   if (running) return;
   running = true;
   console.log(`🚀 [worker:${WORKER_ID}] د ويکټورولو ماشين پيل سو (rate=${RATE_PER_SEC}/s, retries=${MAX_RETRIES})`);
+
+  // د نويو کارونو تر پيلولو مخکي، زاړه قلف سوي کارونه خلاصوو
+  await recoverStuckJobs();
 
   while (running) {
     try {
