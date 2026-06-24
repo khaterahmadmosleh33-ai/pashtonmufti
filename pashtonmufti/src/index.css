@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/* ========================================================= */
+/* ۱. د ګوګل نړيوال فونټونه (چي سمدستي او بې له کوم فايل کار کوي) */
+/* ========================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;700;900&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Jomhuria&family=Katibeh&family=Kufam:wght@400;700&family=Lalezar&family=Lateef:wght@400;700&family=Markazi+Text:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700;800&family=Rakkas&family=Reem+Kufi:wght@400;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;700&display=swap');
+
+/* ========================================================= */
+/* ۲. د پښتو ځانګړي فونټونه (زرين، مرزا، باهيج، کابل، امير) */
+/* يادښت: د دغو ۵ فونټونو د کار کولو لپاره بايد د هغوی (.ttf) فايلونه د سايټ په public/fonts فولډر کي واچوی */
+/* ========================================================= */
+@font-face { font-family: 'Zareen'; src: url('/fonts/Zareen.ttf') format('truetype'); }
+@font-face { font-family: 'Mirza'; src: url('/fonts/Mirza.ttf') format('truetype'); }
+@font-face { font-family: 'Bahij'; src: url('/fonts/Bahij.ttf') format('truetype'); }
+@font-face { font-family: 'Kabul'; src: url('/fonts/Kabul.ttf') format('truetype'); }
+@font-face { font-family: 'Amir Bold'; src: url('/fonts/Amir.ttf') format('truetype'); }
+
 :root {
   /* دلته د عام خط او عنوانونو جلا متغیرونه دي */
   --site-font: "Cairo", "Noto Naskh Arabic", system-ui, sans-serif;
@@ -31,7 +46,7 @@ body {
 }
 
 /* ========================================================= */
-/* نوی او کلک امر: ټول بټنان او غټ سرليکونه بايد د عنوان فونټ واخلي */
+/* کلک امر: ټول بټنان او غټ سرليکونه بايد د عنوان فونټ واخلي */
 /* ========================================================= */
 h1, h2, h3, h4, h5, h6,
 button,
