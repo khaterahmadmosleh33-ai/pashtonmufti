@@ -88,6 +88,7 @@ export default function FatwaRoom() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   
+  const [printId, setPrintId] = useState<string | null>(null);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -149,109 +150,24 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د Word کښته کولو قطعي فنکشن (خالص HTML چي په هر موبايل کي کار کوي)
-  const exportToWord = (fatwa: Fatwa, qText: string) => {
-    try {
-      const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br>");
-      const safeRefs = (fatwa.references || []).map(r => 
-        `<li style="margin-bottom: 8px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
-      ).join('');
-
-      // بيخي ساده جوړښت چي Parsing Error له بېخه ختموي
-      const htmlString = `
-      <html>
-        <head>
-          <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-          <title>Pashton Mufti</title>
-        </head>
-        <body dir="rtl" style="font-family: Arial, sans-serif; text-align: right; color: #000;">
-          <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
-          <div style="background-color: #faf6ee; padding: 15px; border: 1px solid #ddd;">
-            <strong>پوښتنه:</strong><br><br>${qText}
-          </div>
-          <br>
-          <div style="font-size: 16px; line-height: 2;">
-            <strong>الجواب حامداً ومصلياً:</strong><br><br>${safeAnswer}
-          </div>
-          <br>
-          <div style="border-top: 1px dashed #ccc; padding-top: 15px;">
-            <strong>د حنفي فقهي مراجع:</strong>
-            <ul>${safeRefs}</ul>
-          </div>
-        </body>
-      </html>`;
-
-      // '\ufeff' د پښتو تورو د سم پېژندلو لپاره ډېر مهم دی
-      const blob = new Blob(['\ufeff', htmlString], { type: 'application/vnd.ms-word;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      
-      const fileDownload = document.createElement("a");
-      fileDownload.href = url;
-      fileDownload.download = `Fatwa_${Date.now()}.doc`;
-      document.body.appendChild(fileDownload);
-      fileDownload.click();
-      
-      setTimeout(() => {
-        document.body.removeChild(fileDownload);
-        URL.revokeObjectURL(url);
-      }, 100);
-    } catch (e) {
-      console.error("Word Download Error: ", e);
-      alert("د ورډ فايل په جوړولو کي تخنيکي ستونزه پېښه سوه.");
-    }
-  };
-
-  // د PDF کښته کولو قطعي فنکشن (CSS Injection - هم فونټ اخلي، هم نوري پاڼي پټوي)
+  // د PDF کښته کولو لپاره خورا ساده او هوښيار فنکشن
   const handlePrintPDF = (fatwaId: string) => {
-    // ۱. يو موقتي سټايل جوړوو چي يوازي هماغه فتوا سکرين ته راولي او نوره ټوله دنيا پټوي
-    const style = document.createElement('style');
-    style.innerHTML = `
-      @media print {
-        /* ټوله پاڼه پټه کړه */
-        body * {
-          visibility: hidden !important;
-        }
-        /* يوازي دغه مشخصه فتوا او د هغې داخل شيان ښکاره کړه */
-        #fatwa-print-${fatwaId}, #fatwa-print-${fatwaId} * {
-          visibility: visible !important;
-        }
-        /* دغه فتوا د سکرين بيخي سر ته يوسه چي خالي ځای پاته نه سي */
-        #fatwa-print-${fatwaId} {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          margin: 0;
-          padding: 0;
-        }
-        /* د پرنټ بټنان پټ کړه چي په کاغد کي نه راځي */
-        .print-hide {
-          display: none !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-
-    // ۲. پرنټ را غواړو (دا به ستا په انتخاب سوي فونټ کي هماغه يوه فتوا چاپ کړي)
-    window.print();
-
-    // ۳. سټايل بېرته پاکوو چي ستا سايټ عادي حالت ته راسي
+    setPrintId(fatwaId);
     setTimeout(() => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style);
-      }
-    }, 1000);
+      window.print();
+      setPrintId(null);
+    }, 200);
   };
 
   return (
     <>
-      <div className="print-hide">
+      <div className="print:hidden">
         <Hero onAsk={scrollToAsk} />
       </div>
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      <div className="mx-auto max-w-5xl px-6 py-10 print:p-0 print:m-0">
         
-        <div className="print-hide mb-8">
+        <div className="print:hidden mb-8">
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold shadow-sm transition-all hover:shadow-md border border-amber-900/10"
@@ -294,7 +210,7 @@ export default function FatwaRoom() {
           )}
         </div>
 
-        <div ref={askBoxRef} className="print-hide fatwa-card rounded-3xl p-6 md:p-8">
+        <div ref={askBoxRef} className="print:hidden fatwa-card rounded-3xl p-6 md:p-8">
           <div className="mb-3 flex items-center justify-between">
             <label className="text-sm font-bold" style={{ color: "var(--theme-main, #0f3d2e)" }}>
               ستاسي فقهي پوښتنه:
@@ -349,13 +265,13 @@ export default function FatwaRoom() {
         </div>
 
         {error && (
-          <div className="print-hide mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <div className="print:hidden mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
             ⚠️ {error}
           </div>
         )}
 
         {loading && (
-          <div className="print-hide mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
+          <div className="print:hidden mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
             <div className="flex items-center gap-2">
               <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)" }} />
               <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)", animationDelay: "0.2s" }} />
@@ -371,15 +287,15 @@ export default function FatwaRoom() {
         )}
 
         {history.length > 0 && !loading && (
-          <div className="mt-10 space-y-12">
+          <div className="mt-10 space-y-12 print:space-y-0 print:mt-0 print:p-0">
             {history.map((h, i) => (
-              // دغه id ډېره مهمه ده چي پي ډي اېف يوازي همدا برخه پيدا کړي
+              // دلته مو print:hidden وکاراوه چي خالي ځای هم پرې نه ږدي
               <div 
                 key={h.id} 
-                id={`fatwa-print-${h.id}`} 
+                className={`print:my-0 print:break-inside-avoid print:p-0 ${printId && printId !== h.id ? 'print:hidden' : 'block'}`}
               >
                 {i > 0 && (
-                  <div className="print-hide ornament my-8 text-xs text-amber-700/60">
+                  <div className="print:hidden ornament my-8 text-xs text-amber-700/60">
                     ✦ مخکنۍ پوښتنه ✦
                   </div>
                 )}
@@ -395,20 +311,13 @@ export default function FatwaRoom() {
 
                 <FatwaCard fatwa={h.fatwa} meta={h.fatwa} />
                 
-                <div className="print-hide mt-4 flex items-center justify-end gap-3">
+                <div className="print:hidden mt-4 flex items-center justify-end gap-3">
                   <button 
                     onClick={() => handlePrintPDF(h.id)}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
                     style={{ color: "var(--theme-main, #0f3d2e)" }}
                   >
                     📄 PDF کښته کړه
-                  </button>
-                  <button 
-                    onClick={() => exportToWord(h.fatwa, h.question)}
-                    className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:shadow-md"
-                    style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
-                  >
-                    📝 Word کښته کړه
                   </button>
                 </div>
 
