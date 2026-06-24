@@ -38,7 +38,7 @@ const bodyFonts = [
   { name: "کوفام (Kufam)", value: '"Kufam", sans-serif' },
   { name: "ريم کوفي (Reem Kufi)", value: '"Reem Kufi", sans-serif' },
   { name: "عارف رقعة (Aref Ruqaa)", value: '"Aref Ruqaa", serif' },
-  { name: "جمهوريه (Jomhuria)", value: '"Jomhuria", cursive' },
+  { name: "وزير (Vazir)", value: '"Vazirmatn", sans-serif' },
   { name: "رقاص (Rakkas)", value: '"Rakkas", cursive' },
   { name: "کتيبه (Katibeh)", value: '"Katibeh", cursive' },
 ];
