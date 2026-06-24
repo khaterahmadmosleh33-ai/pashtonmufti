@@ -88,8 +88,6 @@ export default function FatwaRoom() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   
-  // د هغه فتوا آی ډي ساتي چي بايد پرنټ سي
-  const [printId, setPrintId] = useState<string | null>(null);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -151,38 +149,40 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د ورډ کښته کولو فنکشن - Parsing ايرور له بېخه حل سو
+  // د Word کښته کولو قطعي فنکشن (خالص HTML چي په هر موبايل کي کار کوي)
   const exportToWord = (fatwa: Fatwa, qText: string) => {
     try {
-      const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
+      const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br>");
       const safeRefs = (fatwa.references || []).map(r => 
         `<li style="margin-bottom: 8px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
       ).join('');
 
-      // دلته مو د موبايل ورډ اپليکېشن د حساسيت د حل لپاره ډېر پاک HTML وکاراوه
-      const content = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+      // بيخي ساده جوړښت چي Parsing Error له بېخه ختموي
+      const htmlString = `
+      <html>
         <head>
-          <meta charset="utf-8">
+          <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
           <title>Pashton Mufti</title>
         </head>
-        <body dir="rtl" style="text-align: right; font-family: 'Arial', sans-serif; color: #000; padding: 20px;">
+        <body dir="rtl" style="font-family: Arial, sans-serif; text-align: right; color: #000;">
           <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
-          <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
-            <strong>پوښتنه:</strong><br/>${qText}
+          <div style="background-color: #faf6ee; padding: 15px; border: 1px solid #ddd;">
+            <strong>پوښتنه:</strong><br><br>${qText}
           </div>
-          <div style="font-size: 16px; line-height: 2; margin-bottom: 30px;">
-            <strong>الجواب حامداً ومصلياً:</strong><br/><br/>${safeAnswer}
+          <br>
+          <div style="font-size: 16px; line-height: 2;">
+            <strong>الجواب حامداً ومصلياً:</strong><br><br>${safeAnswer}
           </div>
-          <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 15px;">
+          <br>
+          <div style="border-top: 1px dashed #ccc; padding-top: 15px;">
             <strong>د حنفي فقهي مراجع:</strong>
             <ul>${safeRefs}</ul>
           </div>
         </body>
       </html>`;
 
-      // يادښت: هغه پټ کوډ (\ufeff) چي فايل يې خرابوی، هغه مو بيخي وويستی
-      const blob = new Blob([content], { type: 'application/msword' });
+      // '\ufeff' د پښتو تورو د سم پېژندلو لپاره ډېر مهم دی
+      const blob = new Blob(['\ufeff', htmlString], { type: 'application/vnd.ms-word;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       
       const fileDownload = document.createElement("a");
@@ -201,28 +201,57 @@ export default function FatwaRoom() {
     }
   };
 
-  // د PDF لپاره نوی قطعي او سل په سلو کي کامياب لوجيک
+  // د PDF کښته کولو قطعي فنکشن (CSS Injection - هم فونټ اخلي، هم نوري پاڼي پټوي)
   const handlePrintPDF = (fatwaId: string) => {
-    // ۱. سيسټم ته وايو چي فقط دغه فتوا بايد پرنټ سي
-    setPrintId(fatwaId);
-    
-    // ۲. لږ انتظار باسو چي سکرين نور شيان پټ کړي، او بيا پرنټ کوو
+    // ۱. يو موقتي سټايل جوړوو چي يوازي هماغه فتوا سکرين ته راولي او نوره ټوله دنيا پټوي
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        /* ټوله پاڼه پټه کړه */
+        body * {
+          visibility: hidden !important;
+        }
+        /* يوازي دغه مشخصه فتوا او د هغې داخل شيان ښکاره کړه */
+        #fatwa-print-${fatwaId}, #fatwa-print-${fatwaId} * {
+          visibility: visible !important;
+        }
+        /* دغه فتوا د سکرين بيخي سر ته يوسه چي خالي ځای پاته نه سي */
+        #fatwa-print-${fatwaId} {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+        }
+        /* د پرنټ بټنان پټ کړه چي په کاغد کي نه راځي */
+        .print-hide {
+          display: none !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // ۲. پرنټ را غواړو (دا به ستا په انتخاب سوي فونټ کي هماغه يوه فتوا چاپ کړي)
+    window.print();
+
+    // ۳. سټايل بېرته پاکوو چي ستا سايټ عادي حالت ته راسي
     setTimeout(() => {
-      window.print();
-      // ۳. پرنټ چي خلاص سو، بېرته پاڼه عادي کوو
-      setPrintId(null);
-    }, 300);
+      if (document.head.contains(style)) {
+        document.head.removeChild(style);
+      }
+    }, 1000);
   };
 
   return (
     <>
-      <div className="print:hidden">
+      <div className="print-hide">
         <Hero onAsk={scrollToAsk} />
       </div>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
         
-        <div className="print:hidden mb-8">
+        <div className="print-hide mb-8">
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold shadow-sm transition-all hover:shadow-md border border-amber-900/10"
@@ -265,7 +294,7 @@ export default function FatwaRoom() {
           )}
         </div>
 
-        <div ref={askBoxRef} className="print:hidden fatwa-card rounded-3xl p-6 md:p-8">
+        <div ref={askBoxRef} className="print-hide fatwa-card rounded-3xl p-6 md:p-8">
           <div className="mb-3 flex items-center justify-between">
             <label className="text-sm font-bold" style={{ color: "var(--theme-main, #0f3d2e)" }}>
               ستاسي فقهي پوښتنه:
@@ -320,13 +349,13 @@ export default function FatwaRoom() {
         </div>
 
         {error && (
-          <div className="print:hidden mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+          <div className="print-hide mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
             ⚠️ {error}
           </div>
         )}
 
         {loading && (
-          <div className="print:hidden mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
+          <div className="print-hide mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
             <div className="flex items-center gap-2">
               <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)" }} />
               <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)", animationDelay: "0.2s" }} />
@@ -344,29 +373,29 @@ export default function FatwaRoom() {
         {history.length > 0 && !loading && (
           <div className="mt-10 space-y-12">
             {history.map((h, i) => (
+              // دغه id ډېره مهمه ده چي پي ډي اېف يوازي همدا برخه پيدا کړي
               <div 
                 key={h.id} 
-                id={i === 0 ? "latest-fatwa" : undefined} 
-                className={`print:my-0 print:break-inside-avoid ${printId && printId !== h.id ? 'hidden' : 'block'}`}
+                id={`fatwa-print-${h.id}`} 
               >
                 {i > 0 && (
-                  <div className="print:hidden ornament my-8 text-xs text-amber-700/60">
+                  <div className="print-hide ornament my-8 text-xs text-amber-700/60">
                     ✦ مخکنۍ پوښتنه ✦
                   </div>
                 )}
                 
-                <div className="print:mb-4 print:text-xl print:font-bold print:border-b-2 print:border-[#b08742] print:pb-2 print:mb-6 hidden print:block" style={{ color: "var(--theme-main, #0f3d2e)" }}>
+                <div className="hidden print:block print:mb-4 print:text-xl print:font-bold print:border-b-2 print:border-[#b08742] print:pb-2 print:mb-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
                   پښتون مفتي - فقهي ځواب
                 </div>
                 
-                <div className="print:bg-[#faf6ee] print:p-4 print:rounded-lg print:mb-6 print:border print:border-gray-200 hidden print:block">
+                <div className="hidden print:block print:bg-[#faf6ee] print:p-4 print:rounded-lg print:mb-6 print:border print:border-gray-200">
                   <strong>پوښتنه:</strong><br/>
                   {h.question}
                 </div>
 
                 <FatwaCard fatwa={h.fatwa} meta={h.fatwa} />
                 
-                <div className="print:hidden mt-4 flex items-center justify-end gap-3">
+                <div className="print-hide mt-4 flex items-center justify-end gap-3">
                   <button 
                     onClick={() => handlePrintPDF(h.id)}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
