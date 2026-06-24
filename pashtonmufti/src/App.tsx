@@ -1,3 +1,5 @@
+// د «پښتون مفتي» اصلي اپليکيشن.
+
 import { useEffect, useState } from "react";
 import Header from "./components/Header";
 import FatwaRoom from "./components/FatwaRoom";
@@ -17,11 +19,16 @@ export default function App() {
   // کله چي اپليکېشن چالان سي، خوندي سوي رنګونه او فونټونه تطبيقوي
   useEffect(() => {
     const savedFont = localStorage.getItem("mufti_font");
+    const savedHeadingFont = localStorage.getItem("mufti_heading_font");
     const savedThemeMain = localStorage.getItem("mufti_theme_main");
     const savedThemeLight = localStorage.getItem("mufti_theme_light");
 
     if (savedFont) {
       document.documentElement.style.setProperty("--site-font", savedFont);
+    }
+    // د عنوانونو فونټ تطبيق
+    if (savedHeadingFont) {
+      document.documentElement.style.setProperty("--heading-font", savedHeadingFont);
     }
     if (savedThemeMain && savedThemeLight) {
       document.documentElement.style.setProperty("--theme-main", savedThemeMain);
