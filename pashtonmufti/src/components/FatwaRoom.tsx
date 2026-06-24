@@ -45,7 +45,7 @@ const bodyFonts = [
 
 // د عنوانونو ۱۲ فونټونه
 const headingFonts = [
-  { name: "امير (Amir Bold)", value: '"Amir Bold", "Amiri", serif' }
+  { name: "امير (Amir Bold)", value: '"Amir Bold", "Amiri", serif' },
   { name: "لاله‌زار (Lalezar)", value: '"Lalezar", cursive' },
   { name: "قاهره تور (Cairo Black)", value: '"Cairo Black", "Cairo", sans-serif' },
   { name: "اميري بولډ (Amiri Bold)", value: '"Amiri Bold", "Amiri", serif' },
