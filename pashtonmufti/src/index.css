@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  /* ډيناميک متغیرونه (چي له اډمن پينل څخه بدليږي) */
+  /* دلته د عام خط او عنوانونو جلا متغیرونه دي */
   --site-font: "Cairo", "Noto Naskh Arabic", system-ui, sans-serif;
+  --heading-font: "Amir Bold", "Lalezar", cursive;
   --theme-main: #0f3d2e;
   --theme-light: #14533f;
 
@@ -20,13 +21,22 @@ body,
 }
 
 body {
-  /* دلته اصلي فونټ د متغیر څخه اخلي */
+  /* عام خط دلته تطبيقيږي */
   font-family: var(--site-font);
   background: #faf6ee;
   color: #0b1220;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: all 0.3s ease;
+}
+
+/* ========================================================= */
+/* نوی او کلک امر: ټول بټنان او غټ سرليکونه بايد د عنوان فونټ واخلي */
+/* ========================================================= */
+h1, h2, h3, h4, h5, h6,
+button,
+.font-heading {
+  font-family: var(--heading-font) !important;
 }
 
 .font-arabic {
@@ -62,7 +72,6 @@ body {
 }
 
 .tab-active {
-  /* دلته رنګ د متغیر څخه اخلي */
   background: linear-gradient(135deg, var(--theme-main) 0%, var(--theme-light) 100%);
   color: #f6e5b8;
   box-shadow: 0 6px 20px -8px var(--theme-main);
