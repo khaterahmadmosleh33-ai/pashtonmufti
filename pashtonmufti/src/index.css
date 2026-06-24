@@ -1,14 +1,10 @@
-@import "tailwindcss";
-
-/* ========================================================= */
-/* ۱. د ګوګل نړيوال فونټونه (چي سمدستي او بې له کوم فايل کار کوي) */
-/* ========================================================= */
+/* ۱. د ګوګل فونټونه بايد تر هر څه لومړی وي */
 @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700&family=Amiri:wght@400;700&family=Aref+Ruqaa:wght@400;700&family=Cairo:wght@400;700;900&family=Changa:wght@400;700&family=El+Messiri:wght@400;700&family=Jomhuria&family=Katibeh&family=Kufam:wght@400;700&family=Lalezar&family=Lateef:wght@400;700&family=Markazi+Text:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700;800&family=Rakkas&family=Reem+Kufi:wght@400;700&family=Scheherazade+New:wght@400;700&family=Tajawal:wght@400;700&display=swap');
 
-/* ========================================================= */
-/* ۲. د پښتو ځانګړي فونټونه (زرين، مرزا، باهيج، کابل، امير) */
-/* يادښت: د دغو ۵ فونټونو د کار کولو لپاره بايد د هغوی (.ttf) فايلونه د سايټ په public/fonts فولډر کي واچوی */
-/* ========================================================= */
+/* ۲. ټېلواينډ بايد تر ګوګل وروسته وي */
+@import "tailwindcss";
+
+/* ۳. ستا خپل ځانګړي فونټونه */
 @font-face { font-family: 'Zareen'; src: url('/fonts/Zareen.ttf') format('truetype'); }
 @font-face { font-family: 'Mirza'; src: url('/fonts/Mirza.ttf') format('truetype'); }
 @font-face { font-family: 'Bahij'; src: url('/fonts/Bahij.ttf') format('truetype'); }
@@ -16,13 +12,11 @@
 @font-face { font-family: 'Amir Bold'; src: url('/fonts/Amir.ttf') format('truetype'); }
 
 :root {
-  /* دلته د عام خط او عنوانونو جلا متغیرونه دي */
   --site-font: "Cairo", "Noto Naskh Arabic", system-ui, sans-serif;
   --heading-font: "Amir Bold", "Lalezar", cursive;
   --theme-main: #0f3d2e;
   --theme-light: #14533f;
 
-  /* ثابت رنګونه */
   --color-ink: #0b1220;
   --color-paper: #fbf7ef;
   --color-gold: #b08742;
@@ -35,9 +29,9 @@ body,
   height: 100%;
 }
 
-body {
-  /* عام خط دلته تطبيقيږي */
-  font-family: var(--site-font);
+/* کلک امر: ټول عام متنونه، پراګرافونه او انپوټونه بايد د عام خط فونټ واخلي */
+body, p, span, div, textarea, input {
+  font-family: var(--site-font) !important;
   background: #faf6ee;
   color: #0b1220;
   -webkit-font-smoothing: antialiased;
@@ -45,9 +39,7 @@ body {
   transition: all 0.3s ease;
 }
 
-/* ========================================================= */
-/* کلک امر: ټول بټنان او غټ سرليکونه بايد د عنوان فونټ واخلي */
-/* ========================================================= */
+/* کلک امر: ټول سرليکونه او بټنان بايد د عنوان فونټ واخلي */
 h1, h2, h3, h4, h5, h6,
 button,
 .font-heading {
@@ -55,13 +47,13 @@ button,
 }
 
 .font-arabic {
-  font-family: var(--site-font);
+  font-family: var(--site-font) !important;
   line-height: 2.1;
   font-size: 1.15rem;
 }
 
 .font-pashto {
-  font-family: var(--site-font);
+  font-family: var(--site-font) !important;
 }
 
 .paper-bg {
