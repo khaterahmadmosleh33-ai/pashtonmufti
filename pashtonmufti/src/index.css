@@ -1,12 +1,16 @@
 @import "tailwindcss";
 
-/* د کندهارۍ پښتو او عربي ژبو لپاره فونټونه او عمومي ښکلا */
 :root {
+  /* ډيناميک متغیرونه (چي له اډمن پينل څخه بدليږي) */
+  --site-font: "Cairo", "Noto Naskh Arabic", system-ui, sans-serif;
+  --theme-main: #0f3d2e;
+  --theme-light: #14533f;
+
+  /* ثابت رنګونه */
   --color-ink: #0b1220;
   --color-paper: #fbf7ef;
   --color-gold: #b08742;
   --color-gold-dark: #8a6a32;
-  --color-emerald-deep: #0f3d2e;
 }
 
 html,
@@ -16,29 +20,28 @@ body,
 }
 
 body {
-  font-family: "Cairo", "Noto Naskh Arabic", "Scheherazade New", system-ui, sans-serif;
+  /* دلته اصلي فونټ د متغیر څخه اخلي */
+  font-family: var(--site-font);
   background: #faf6ee;
   color: #0b1220;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: all 0.3s ease;
 }
 
-/* د عربي متن لپاره ځانګړی فونټ (د کتابونو متن) */
 .font-arabic {
-  font-family: "Amiri", "Scheherazade New", "Noto Naskh Arabic", serif;
+  font-family: var(--site-font);
   line-height: 2.1;
   font-size: 1.15rem;
 }
 
 .font-pashto {
-  font-family: "Cairo", "Noto Naskh Arabic", system-ui, sans-serif;
+  font-family: var(--site-font);
 }
 
-/* اسلامي تزييني نمونه (د طلايي خط او د کتاب کاغذ سره ورته) */
 .paper-bg {
   background-color: #faf6ee;
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(176, 135, 66, 0.08) 1px, transparent 0);
+  background-image: radial-gradient(circle at 1px 1px, rgba(176, 135, 66, 0.08) 1px, transparent 0);
   background-size: 22px 22px;
 }
 
@@ -46,7 +49,6 @@ body {
   border-image: linear-gradient(135deg, #d4af6a, #8a6a32, #d4af6a) 1;
 }
 
-/* د سکرول پټۍ ښکلا */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -59,23 +61,19 @@ body {
   border-radius: 6px;
 }
 
-/* د tabs لپاره فعال حالت */
 .tab-active {
-  background: linear-gradient(135deg, #0f3d2e 0%, #14533f 100%);
+  /* دلته رنګ د متغیر څخه اخلي */
+  background: linear-gradient(135deg, var(--theme-main) 0%, var(--theme-light) 100%);
   color: #f6e5b8;
-  box-shadow: 0 6px 20px -8px rgba(15, 61, 46, 0.6);
+  box-shadow: 0 6px 20px -8px var(--theme-main);
 }
 
-/* د چټ د بلبل (bubble) ښکلا */
 .fatwa-card {
   background: linear-gradient(180deg, #fffdf6 0%, #faf3e1 100%);
   border: 1px solid rgba(176, 135, 66, 0.35);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 20px 40px -24px rgba(15, 61, 46, 0.25);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 20px 40px -24px rgba(0, 0, 0, 0.1);
 }
 
-/* د ټوپ (animated) ټکی */
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.85); }
@@ -84,13 +82,6 @@ body {
   animation: pulse-dot 1.4s ease-in-out infinite;
 }
 
-/* د typing انيميشن */
-@keyframes typing {
-  0% { width: 0; }
-  100% { width: 100%; }
-}
-
-/* د لاسليک خط (decorative divider) */
 .ornament {
   display: flex;
   align-items: center;
@@ -102,14 +93,9 @@ body {
   content: "";
   flex: 1;
   height: 1px;
-  background: linear-gradient(
-    to var(--dir, left),
-    transparent,
-    rgba(176, 135, 66, 0.6)
-  );
+  background: linear-gradient(to var(--dir, left), transparent, rgba(176, 135, 66, 0.6));
 }
 
-/* د کوډ ډوله متن (architecture) */
 .mono {
   font-family: ui-monospace, "JetBrains Mono", "Fira Code", monospace;
 }
