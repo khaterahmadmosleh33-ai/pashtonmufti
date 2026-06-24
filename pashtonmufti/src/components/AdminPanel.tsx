@@ -1,4 +1,4 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، او د اپلوډ موډال.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال او د سايټ تنظيمات.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
@@ -14,7 +14,7 @@ export default function AdminPanel() {
   const [books, setBooks] = useState<BookStatus[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"workbench" | "all">("workbench");
+  const [view, setView] = useState<"workbench" | "all" | "settings">("workbench");
   const [error, setError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
 
@@ -111,12 +111,11 @@ export default function AdminPanel() {
       {/* د سر عنوان */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="mb-2 text-3xl font-bold text-[#0f3d2e]">
+          <h2 className="mb-2 text-3xl font-bold" style={{ color: "var(--theme-main)" }}>
             د اډمن پينل
           </h2>
           <p className="text-amber-950/80">
-            د کتابونو د پروسس، ويکټورولو، او د قطار د حالت څارنه. ټول درانه کارونه
-            د سرور پر خوا د Background Worker لخوا ترسره کيږي.
+            د کتابونو د پروسس، ويکټورولو، د قطار د حالت څارنه او د سايټ تنظيمات.
           </p>
         </div>
         <div className="flex shrink-0 gap-3">
@@ -129,7 +128,8 @@ export default function AdminPanel() {
           </button>
           <button
             onClick={() => setOpen(true)}
-            className="rounded-2xl bg-gradient-to-br from-[#0f3d2e] to-[#14533f] px-5 py-3 text-sm font-bold text-amber-100 shadow-lg transition-all hover:opacity-90"
+            className="rounded-2xl px-5 py-3 text-sm font-bold text-amber-100 shadow-lg transition-all hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, var(--theme-main), var(--theme-light))" }}
           >
             ➕ نوی کتاب اپلوډ کړی
           </button>
@@ -154,6 +154,14 @@ export default function AdminPanel() {
         >
           📚 ټول کتابونه او قطار
         </button>
+        <button
+          onClick={() => setView("settings")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            view === "settings" ? "tab-active" : "text-emerald-900 hover:bg-amber-50"
+          }`}
+        >
+          ⚙️ د سايټ تنظيمات
+        </button>
       </div>
 
       {view === "workbench" && (
@@ -162,9 +170,96 @@ export default function AdminPanel() {
       {view === "all" && (
         <AllBooksView stats={stats} books={books} />
       )}
+      {view === "settings" && (
+        <SettingsView />
+      )}
     </div>
   );
 }
+
+// ==========================================
+// د سايټ د تنظيماتو (Settings) د کنټرول برخه
+// ==========================================
+function SettingsView() {
+  const fonts = [
+    { name: "عصري (Cairo)", value: '"Cairo", "Noto Naskh Arabic", sans-serif' },
+    { name: "رسمي (Amiri)", value: '"Amiri", "Scheherazade New", serif' },
+    { name: "کلاسيک (Scheherazade)", value: '"Scheherazade New", serif' },
+  ];
+
+  const themes = [
+    { name: "شين (طبيعي)", main: "#0f3d2e", light: "#14533f" },
+    { name: "آبي (مسلکي)", main: "#0f172a", light: "#1e293b" },
+    { name: "نسواري (کلاسيک)", main: "#4a2c0f", light: "#5e3a15" },
+    { name: "تور (تياره)", main: "#111111", light: "#222222" },
+  ];
+
+  const handleFontChange = (fontValue: string) => {
+    document.documentElement.style.setProperty("--site-font", fontValue);
+    localStorage.setItem("mufti_font", fontValue);
+  };
+
+  const handleThemeChange = (main: string, light: string) => {
+    document.documentElement.style.setProperty("--theme-main", main);
+    document.documentElement.style.setProperty("--theme-light", light);
+    localStorage.setItem("mufti_theme_main", main);
+    localStorage.setItem("mufti_theme_light", light);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="fatwa-card rounded-2xl p-8">
+        <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--theme-main)" }}>
+          🎨 د سايټ بڼه او ښکلا
+        </h3>
+        
+        <div className="mb-8">
+          <label className="mb-3 block text-sm font-bold text-amber-900">
+            د سايټ ليکدود (Font) وټاکی:
+          </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {fonts.map((f) => (
+              <button
+                key={f.name}
+                onClick={() => handleFontChange(f.value)}
+                className="rounded-xl border border-amber-900/20 bg-white p-4 text-center transition-all hover:bg-amber-50 focus:ring-2 focus:ring-emerald-700"
+                style={{ fontFamily: f.value }}
+              >
+                <div className="text-lg font-bold">{f.name}</div>
+                <div className="mt-2 text-xs text-amber-700">پښتون مفتي</div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-3 block text-sm font-bold text-amber-900">
+            د سايټ اصلي رنګ (Theme) وټاکی:
+          </label>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {themes.map((t) => (
+              <button
+                key={t.name}
+                onClick={() => handleThemeChange(t.main, t.light)}
+                className="flex flex-col items-center gap-2 rounded-xl border border-amber-900/20 bg-white p-4 transition-all hover:bg-amber-50"
+              >
+                <div
+                  className="h-10 w-10 rounded-full shadow-inner"
+                  style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }}
+                />
+                <span className="text-sm font-bold text-amber-900">{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// پخوانۍ برخي (ټول کتابونه، شمېرې او بيجونه)
+// ==========================================
 
 function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
   return (
