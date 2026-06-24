@@ -152,22 +152,27 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د Word کښته کولو فنکشن
+  // د Word کښته کولو فنکشن (يوازي د يوې فتوا لپاره)
   const exportToWord = (fatwa: Fatwa, qText: string) => {
-    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Fatwa</title></head><body>`;
+    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Pashton Mufti Fatwa</title></head><body>`;
     const footer = "</body></html>";
     const content = `
-      <div style="text-align: right; direction: rtl; font-family: Arial, sans-serif;">
-        <h1 style="color: #0f3d2e;">پښتون مفتي - فقهي ځواب</h1>
-        <hr />
-        <h3>پوښتنه:</h3>
-        <p>${qText}</p>
-        <h3>الجواب حامداً ومصلياً:</h3>
-        <p>${fatwa.answer.replace(/\n/g, "<br/>")}</p>
-        <h3>مراجع:</h3>
-        <ul>
-          ${fatwa.references.map(r => `<li><b>${r.book}</b> (ټوک ${r.volume}، مخ ${r.page}): ${r.text}</li>`).join('')}
-        </ul>
+      <div style="text-align: right; direction: rtl; font-family: 'Cairo', Arial, sans-serif;">
+        <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
+        <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <strong>پوښتنه:</strong><br/>
+          ${qText}
+        </div>
+        <div style="font-size: 16px; line-height: 2; margin-bottom: 30px;">
+          <strong>الجواب حامداً ومصلياً:</strong><br/><br/>
+          ${fatwa.answer.replace(/\n/g, "<br/>")}
+        </div>
+        <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 15px;">
+          <strong>د حنفي فقهي مراجع:</strong>
+          <ul>
+            ${fatwa.references.map(r => `<li style="margin-bottom: 8px;"><b>${r.book}</b> (ټوک ${r.volume}، مخ ${r.page}): ${r.text}</li>`).join('')}
+          </ul>
+        </div>
       </div>
     `;
     const sourceHTML = header + content + footer;
@@ -180,21 +185,92 @@ export default function FatwaRoom() {
     document.body.removeChild(fileDownload);
   };
 
-  // د PDF کښته کولو فنکشن (د براوزر اصلي پرنټ کاروي چي ډېر صفا دی)
-  const exportToPDF = () => {
-    window.print();
+  // د PDF کښته کولو نوی او مسلکي فنکشن (يوازي د يوې فتوا لپاره)
+  const exportToPDF = (fatwa: Fatwa, qText: string) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+
+    const htmlContent = `
+      <html dir="rtl">
+        <head>
+          <title>پښتون مفتي - فتوا</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&family=Amiri:wght@700&display=swap');
+            body { 
+              font-family: 'Cairo', sans-serif; 
+              padding: 40px; 
+              color: #0b1220; 
+              line-height: 2.2; 
+            }
+            h1 { 
+              color: #0f3d2e; 
+              border-bottom: 2px solid #b08742; 
+              padding-bottom: 10px; 
+              font-family: 'Amiri', serif; 
+            }
+            .q-box { 
+              background-color: #faf6ee; 
+              padding: 20px; 
+              border-radius: 12px; 
+              margin-bottom: 25px; 
+              border: 1px solid #e5e7eb; 
+            }
+            .a-box { 
+              font-size: 1.15rem; 
+              margin-bottom: 40px; 
+            }
+            .ref-box { 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 1px dashed #b08742; 
+              font-size: 0.95rem; 
+            }
+            ul { padding-right: 20px; }
+            li { margin-bottom: 10px; }
+            @media print {
+              @page { margin: 2cm; }
+              body { padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>پښتون مفتي - فقهي ځواب</h1>
+          <div class="q-box">
+            <strong>پوښتنه:</strong><br/>
+            ${qText}
+          </div>
+          <div class="a-box">
+            <strong>الجواب حامداً ومصلياً:</strong><br/><br/>
+            ${fatwa.answer.replace(/\n/g, "<br/>")}
+          </div>
+          <div class="ref-box">
+            <strong>د حنفي فقهي مراجع:</strong>
+            <ul>
+              ${fatwa.references.map(r => `<li><b>${r.book}</b> (ټوک ${r.volume}، مخ ${r.page}): ${r.text}</li>`).join('')}
+            </ul>
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 500);
   };
 
   return (
     <>
-      {/* Hero برخه به د پرنټ پر مهال پټيږي */}
       <div className="print:hidden">
         <Hero onAsk={scrollToAsk} />
       </div>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
         
-        {/* د تنظيماتو مېنو (د کاروونکو لپاره) */}
         <div className="print:hidden mb-8">
           <button 
             onClick={() => setShowSettings(!showSettings)}
@@ -238,7 +314,6 @@ export default function FatwaRoom() {
           )}
         </div>
 
-        {/* د پوښتني انپوټ (د پرنټ پر مهال پټيږي) */}
         <div ref={askBoxRef} className="print:hidden fatwa-card rounded-3xl p-6 md:p-8">
           <div className="mb-3 flex items-center justify-between">
             <label className="text-sm font-bold" style={{ color: "var(--theme-main, #0f3d2e)" }}>
@@ -276,7 +351,6 @@ export default function FatwaRoom() {
             </button>
           </div>
 
-          {/* وړانديز سوي پوښتني */}
           <div className="mt-5 flex flex-wrap gap-2">
             <span className="text-xs font-bold text-amber-900/70">
               چټکي پوښتني:
@@ -300,7 +374,6 @@ export default function FatwaRoom() {
           </div>
         )}
 
-        {/* د بار وېستلو ساده حالت */}
         {loading && (
           <div className="print:hidden mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
             <div className="flex items-center gap-2">
@@ -317,7 +390,6 @@ export default function FatwaRoom() {
           </div>
         )}
 
-        {/* د ځوابونو تاريخچه او د ډانلوډ تڼۍ */}
         {history.length > 0 && !loading && (
           <div className="mt-10 space-y-12">
             {history.map((h, i) => (
@@ -328,13 +400,11 @@ export default function FatwaRoom() {
                   </div>
                 )}
                 
-                {/* اصلي فتوا کارت */}
                 <FatwaCard fatwa={h.fatwa} meta={h.fatwa} />
                 
-                {/* د ډانلوډ تڼۍ چي يوازي په سکرين کي ښکاري */}
                 <div className="print:hidden mt-4 flex items-center justify-end gap-3">
                   <button 
-                    onClick={() => exportToPDF()}
+                    onClick={() => exportToPDF(h.fatwa, question || "فقهي پوښتنه")}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
                     style={{ color: "var(--theme-main, #0f3d2e)" }}
                   >
