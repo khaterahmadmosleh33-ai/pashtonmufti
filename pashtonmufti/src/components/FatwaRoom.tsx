@@ -87,6 +87,9 @@ export default function FatwaRoom() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // د هغه فتوا آی ډي ساتي چي بايد پرنټ سي
+  const [printId, setPrintId] = useState<string | null>(null);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -148,7 +151,7 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // تر ټولو قوي Word ايکسپورټ فنکشن چي د Parsing ايرور يې سل په سلو کي حل سوی دی
+  // د ورډ کښته کولو فنکشن - Parsing ايرور له بېخه حل سو
   const exportToWord = (fatwa: Fatwa, qText: string) => {
     try {
       const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
@@ -156,14 +159,14 @@ export default function FatwaRoom() {
         `<li style="margin-bottom: 8px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
       ).join('');
 
-      // دلته مو هغه سختګيره XML ټګونه پاک کړل، يوازي ساده HTML5 مو پرېښود چي هر موبايل يې پېژني
-      const content = `<!DOCTYPE html>
-      <html lang="ps">
+      // دلته مو د موبايل ورډ اپليکېشن د حساسيت د حل لپاره ډېر پاک HTML وکاراوه
+      const content = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
         <head>
           <meta charset="utf-8">
-          <title>پښتون مفتي - فقهي ځواب</title>
+          <title>Pashton Mufti</title>
         </head>
-        <body dir="rtl" style="text-align: right; font-family: 'Arial', sans-serif; padding: 20px; color: #000;">
+        <body dir="rtl" style="text-align: right; font-family: 'Arial', sans-serif; color: #000; padding: 20px;">
           <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
           <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
             <strong>پوښتنه:</strong><br/>${qText}
@@ -178,7 +181,8 @@ export default function FatwaRoom() {
         </body>
       </html>`;
 
-      const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
+      // يادښت: هغه پټ کوډ (\ufeff) چي فايل يې خرابوی، هغه مو بيخي وويستی
+      const blob = new Blob([content], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
       
       const fileDownload = document.createElement("a");
@@ -197,56 +201,17 @@ export default function FatwaRoom() {
     }
   };
 
-  const exportToPDF = (fatwa: Fatwa, qText: string) => {
-    try {
-      const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
-      const safeRefs = (fatwa.references || []).map(r => 
-        `<li style="margin-bottom: 10px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
-      ).join('');
-
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-
-      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (!iframeDoc) throw new Error("iFrame not supported");
-
-      iframeDoc.open();
-      iframeDoc.write(`
-        <html dir="rtl">
-          <head>
-            <title>Fatwa_Print</title>
-            <style>
-              body { font-family: Tahoma, sans-serif; padding: 30px; color: #000; line-height: 2.2; direction: rtl; text-align: right; }
-              h1 { color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px; font-size: 24px; }
-              .box { background-color: #faf6ee; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; }
-            </style>
-          </head>
-          <body>
-            <h1>پښتون مفتي - فقهي ځواب</h1>
-            <div class="box"><strong>پوښتنه:</strong><br/>${qText}</div>
-            <div class="box" style="background-color: #fff;"><strong>الجواب حامداً ومصلياً:</strong><br/><br/>${safeAnswer}</div>
-            <div style="margin-top: 30px;">
-              <strong>د حنفي فقهي مراجع:</strong>
-              <ul style="padding-right: 20px;">${safeRefs}</ul>
-            </div>
-          </body>
-        </html>
-      `);
-      iframeDoc.close();
-
-      iframe.onload = () => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-        }, 3000);
-      };
-    } catch (e) {
-      console.error("PDF Download Error: ", e);
-      alert("د PDF په پرنټولو کي تخنيکي ستونزه پېښه سوه.");
-    }
+  // د PDF لپاره نوی قطعي او سل په سلو کي کامياب لوجيک
+  const handlePrintPDF = (fatwaId: string) => {
+    // ۱. سيسټم ته وايو چي فقط دغه فتوا بايد پرنټ سي
+    setPrintId(fatwaId);
+    
+    // ۲. لږ انتظار باسو چي سکرين نور شيان پټ کړي، او بيا پرنټ کوو
+    setTimeout(() => {
+      window.print();
+      // ۳. پرنټ چي خلاص سو، بېرته پاڼه عادي کوو
+      setPrintId(null);
+    }, 300);
   };
 
   return (
@@ -379,18 +344,31 @@ export default function FatwaRoom() {
         {history.length > 0 && !loading && (
           <div className="mt-10 space-y-12">
             {history.map((h, i) => (
-              <div key={h.id} id={i === 0 ? "latest-fatwa" : undefined} className="print:my-0 print:break-inside-avoid">
+              <div 
+                key={h.id} 
+                id={i === 0 ? "latest-fatwa" : undefined} 
+                className={`print:my-0 print:break-inside-avoid ${printId && printId !== h.id ? 'hidden' : 'block'}`}
+              >
                 {i > 0 && (
                   <div className="print:hidden ornament my-8 text-xs text-amber-700/60">
                     ✦ مخکنۍ پوښتنه ✦
                   </div>
                 )}
                 
+                <div className="print:mb-4 print:text-xl print:font-bold print:border-b-2 print:border-[#b08742] print:pb-2 print:mb-6 hidden print:block" style={{ color: "var(--theme-main, #0f3d2e)" }}>
+                  پښتون مفتي - فقهي ځواب
+                </div>
+                
+                <div className="print:bg-[#faf6ee] print:p-4 print:rounded-lg print:mb-6 print:border print:border-gray-200 hidden print:block">
+                  <strong>پوښتنه:</strong><br/>
+                  {h.question}
+                </div>
+
                 <FatwaCard fatwa={h.fatwa} meta={h.fatwa} />
                 
                 <div className="print:hidden mt-4 flex items-center justify-end gap-3">
                   <button 
-                    onClick={() => exportToPDF(h.fatwa, h.question)}
+                    onClick={() => handlePrintPDF(h.id)}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
                     style={{ color: "var(--theme-main, #0f3d2e)" }}
                   >
