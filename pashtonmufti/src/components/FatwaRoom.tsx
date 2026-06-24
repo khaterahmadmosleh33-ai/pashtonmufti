@@ -6,7 +6,6 @@ import type { Fatwa } from "../types";
 import FatwaCard from "./FatwaCard";
 import Hero from "./Hero";
 
-// د تاريخچې په ماډل کي مي د 'question' برخه ور زياته کړه تر څو هره فتوا خپله پوښتنه خوندي وساتي
 type HistoryItem = {
   id: string;
   question: string; 
@@ -97,7 +96,7 @@ export default function FatwaRoom() {
         setHistory(
           items.map((fatwa, i) => ({
             id: `server-${i}`,
-            question: "فقهي پوښتنه", // د سرور زړو پوښتنو لپاره
+            question: "فقهي پوښتنه", 
             fatwa,
             at: Date.now() - i,
           }))
@@ -149,7 +148,7 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // تر ټولو قوي Word ايکسپورټ فنکشن (خوندي شوی او بې‌نقص)
+  // تر ټولو قوي Word ايکسپورټ فنکشن چي د Parsing ايرور يې سل په سلو کي حل سوی دی
   const exportToWord = (fatwa: Fatwa, qText: string) => {
     try {
       const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
@@ -157,12 +156,16 @@ export default function FatwaRoom() {
         `<li style="margin-bottom: 8px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
       ).join('');
 
-      const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Pashton Mufti</title></head><body>`;
-      const footer = "</body></html>";
-      const content = `
-        <div style="text-align: right; direction: rtl; font-family: 'Arial', sans-serif;">
+      // دلته مو هغه سختګيره XML ټګونه پاک کړل، يوازي ساده HTML5 مو پرېښود چي هر موبايل يې پېژني
+      const content = `<!DOCTYPE html>
+      <html lang="ps">
+        <head>
+          <meta charset="utf-8">
+          <title>پښتون مفتي - فقهي ځواب</title>
+        </head>
+        <body dir="rtl" style="text-align: right; font-family: 'Arial', sans-serif; padding: 20px; color: #000;">
           <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
-          <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+          <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #ddd;">
             <strong>پوښتنه:</strong><br/>${qText}
           </div>
           <div style="font-size: 16px; line-height: 2; margin-bottom: 30px;">
@@ -172,10 +175,10 @@ export default function FatwaRoom() {
             <strong>د حنفي فقهي مراجع:</strong>
             <ul>${safeRefs}</ul>
           </div>
-        </div>
-      `;
-      const sourceHTML = header + content + footer;
-      const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+        </body>
+      </html>`;
+
+      const blob = new Blob(['\ufeff', content], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
       
       const fileDownload = document.createElement("a");
@@ -194,7 +197,6 @@ export default function FatwaRoom() {
     }
   };
 
-  // د PDF ايکسپورټ پټ آی‌فرېم (Hidden iFrame) ټيکنالوژي - د نړيوالو شرکتونو سټنډرډ
   const exportToPDF = (fatwa: Fatwa, qText: string) => {
     try {
       const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
@@ -202,7 +204,6 @@ export default function FatwaRoom() {
         `<li style="margin-bottom: 10px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
       ).join('');
 
-      // د پرنټ لپاره يو پټ چوکاټ (iFrame) جوړوو
       const iframe = document.createElement('iframe');
       iframe.style.display = 'none';
       document.body.appendChild(iframe);
@@ -234,12 +235,10 @@ export default function FatwaRoom() {
       `);
       iframeDoc.close();
 
-      // انتظار باسو تر څو پټ چوکاټ اماده سي، بيا يې پرنټ کوو
       iframe.onload = () => {
         iframe.contentWindow?.focus();
         iframe.contentWindow?.print();
         
-        // تر پرنټ وروسته پټ چوکاټ ړنګوو
         setTimeout(() => {
           document.body.removeChild(iframe);
         }, 3000);
