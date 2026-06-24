@@ -187,11 +187,28 @@ function SettingsView() {
     { name: "کلاسيک (Scheherazade)", value: '"Scheherazade New", serif' },
   ];
 
+  // د کاروونکي د انتخاب سره سم ۲۰ پروفيشنل رنګونه
   const themes = [
-    { name: "شين (طبيعي)", main: "#0f3d2e", light: "#14533f" },
-    { name: "آبي (مسلکي)", main: "#0f172a", light: "#1e293b" },
-    { name: "نسواري (کلاسيک)", main: "#4a2c0f", light: "#5e3a15" },
-    { name: "تور (تياره)", main: "#111111", light: "#222222" },
+    { name: "زمردي شين (Emerald)", main: "#0f3d2e", light: "#14533f" },
+    { name: "شين (Green)", main: "#15803d", light: "#166534" },
+    { name: "شين آبي (Teal)", main: "#0f766e", light: "#115e59" },
+    { name: "اسماني (Cyan)", main: "#0e7490", light: "#155e75" },
+    { name: "آبي (Blue)", main: "#1d4ed8", light: "#1e40af" },
+    { name: "شين بحري (Navy)", main: "#1e3a8a", light: "#172554" },
+    { name: "انډيګو (Indigo)", main: "#4338ca", light: "#3730a3" },
+    { name: "بنفش (Violet)", main: "#6d28d9", light: "#5b21b6" },
+    { name: "ارغواني (Purple)", main: "#7e22ce", light: "#6b21a8" },
+    { name: "تېز ګلابي (Fuchsia)", main: "#a21caf", light: "#86198f" },
+    { name: "ګلابي (Pink)", main: "#be185d", light: "#9d174d" },
+    { name: "سره ګلابي (Rose)", main: "#e11d48", light: "#be123c" },
+    { name: "سور (Red)", main: "#b91c1c", light: "#991b1b" },
+    { name: "نارنجي (Orange)", main: "#c2410c", light: "#9a3412" },
+    { name: "تېز زېړ (Amber)", main: "#d97706", light: "#b45309" },
+    { name: "سرو زرو (Gold)", main: "#b08742", light: "#8a6a32" },
+    { name: "خړ (Slate)", main: "#334155", light: "#1e293b" },
+    { name: "تور (Midnight)", main: "#111111", light: "#222222" },
+    { name: "قهوه يي (Coffee)", main: "#4a2c0f", light: "#381e08" },
+    { name: "شاهي سور (Crimson)", main: "#831843", light: "#500724" },
   ];
 
   const handleFontChange = (fontValue: string) => {
@@ -230,24 +247,27 @@ function SettingsView() {
               </button>
             ))}
           </div>
+          <div className="mt-3 text-xs text-amber-900/70">
+            * د نورو ۲۰ مسلکي فونټونو اضافه کولو کار به د راتلونکي ګام په توګه د ډېټابېس له لاري ترسره کيږي.
+          </div>
         </div>
 
         <div>
-          <label className="mb-3 block text-sm font-bold text-amber-900">
-            د سايټ اصلي رنګ (Theme) وټاکی:
+          <label className="mb-4 block text-sm font-bold text-amber-900">
+            د سايټ اصلي رنګ (Theme) وټاکی (۲۰ رنګونه):
           </label>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
             {themes.map((t) => (
               <button
                 key={t.name}
                 onClick={() => handleThemeChange(t.main, t.light)}
-                className="flex flex-col items-center gap-2 rounded-xl border border-amber-900/20 bg-white p-4 transition-all hover:bg-amber-50"
+                className="flex flex-col items-center gap-2 rounded-xl border border-amber-900/10 bg-white p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
               >
                 <div
-                  className="h-10 w-10 rounded-full shadow-inner"
+                  className="h-10 w-10 rounded-full shadow-inner ring-2 ring-transparent transition-all focus:ring-emerald-700"
                   style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }}
                 />
-                <span className="text-sm font-bold text-amber-900">{t.name}</span>
+                <span className="text-xs font-bold text-amber-900">{t.name}</span>
               </button>
             ))}
           </div>
