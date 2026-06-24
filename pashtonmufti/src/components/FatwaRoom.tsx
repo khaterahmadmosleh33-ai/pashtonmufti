@@ -6,8 +6,10 @@ import type { Fatwa } from "../types";
 import FatwaCard from "./FatwaCard";
 import Hero from "./Hero";
 
+// د تاريخچې په ماډل کي مي د 'question' برخه ور زياته کړه تر څو هره فتوا خپله پوښتنه خوندي وساتي
 type HistoryItem = {
   id: string;
+  question: string; 
   fatwa: Fatwa & { model?: string; latency_ms?: number };
   at: number;
 };
@@ -19,7 +21,6 @@ const suggestedQuestions = [
   "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
 
-// د عام متن ۲۰ فونټونه
 const bodyFonts = [
   { name: "زرين (Zareen)", value: '"Zareen", "Noto Naskh Arabic", sans-serif' },
   { name: "مرزا (Mirza)", value: '"Mirza", "Noto Naskh Arabic", sans-serif' },
@@ -43,7 +44,6 @@ const bodyFonts = [
   { name: "کتيبه (Katibeh)", value: '"Katibeh", cursive' },
 ];
 
-// د عنوانونو ۱۲ فونټونه
 const headingFonts = [
   { name: "امير (Amir Bold)", value: '"Amir Bold", "Amiri", serif' },
   { name: "لاله‌زار (Lalezar)", value: '"Lalezar", cursive' },
@@ -59,7 +59,6 @@ const headingFonts = [
   { name: "رقعة (Ruqaa)", value: '"Aref Ruqaa", serif' },
 ];
 
-// ۲۰ مسلکي رنګونه
 const themes = [
   { name: "زمردي شين", main: "#0f3d2e", light: "#14533f" },
   { name: "شين", main: "#15803d", light: "#166534" },
@@ -98,14 +97,13 @@ export default function FatwaRoom() {
         setHistory(
           items.map((fatwa, i) => ({
             id: `server-${i}`,
+            question: "فقهي پوښتنه", // د سرور زړو پوښتنو لپاره
             fatwa,
             at: Date.now() - i,
           }))
         );
       })
-      .catch(() => {
-        /* تاريخ اختياري دی */
-      });
+      .catch(() => {});
   }, []);
 
   const ask = async (q: string) => {
@@ -116,7 +114,7 @@ export default function FatwaRoom() {
     try {
       const f = await askMufti(q);
       setHistory((h) => [
-        { id: crypto.randomUUID(), fatwa: f, at: Date.now() },
+        { id: crypto.randomUUID(), question: q, fatwa: f, at: Date.now() },
         ...h,
       ]);
       setTimeout(() => {
@@ -139,7 +137,6 @@ export default function FatwaRoom() {
     if (confirm("د پردې ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) setHistory([]);
   };
 
-  // د تنظيماتو د بدلولو فنکشنونه
   const applyFont = (variable: string, val: string, storageKey: string) => {
     document.documentElement.style.setProperty(variable, val);
     localStorage.setItem(storageKey, val);
@@ -152,91 +149,105 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د Word کښته کولو فنکشن (Blob مېتود چي په موبايل کي سل په سلو کي کار کوي)
+  // تر ټولو قوي Word ايکسپورټ فنکشن (خوندي شوی او بې‌نقص)
   const exportToWord = (fatwa: Fatwa, qText: string) => {
-    const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Pashton Mufti Fatwa</title></head><body>`;
-    const footer = "</body></html>";
-    const content = `
-      <div style="text-align: right; direction: rtl; font-family: 'Cairo', Arial, sans-serif;">
-        <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
-        <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-          <strong>پوښتنه:</strong><br/>
-          ${qText}
-        </div>
-        <div style="font-size: 16px; line-height: 2; margin-bottom: 30px;">
-          <strong>الجواب حامداً ومصلياً:</strong><br/><br/>
-          ${fatwa.answer.replace(/\n/g, "<br/>")}
-        </div>
-        <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 15px;">
-          <strong>د حنفي فقهي مراجع:</strong>
-          <ul>
-            ${fatwa.references.map(r => `<li style="margin-bottom: 8px;"><b>${r.book}</b> (ټوک ${r.volume}، مخ ${r.page}): ${r.text}</li>`).join('')}
-          </ul>
-        </div>
-      </div>
-    `;
-    const sourceHTML = header + content + footer;
+    try {
+      const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
+      const safeRefs = (fatwa.references || []).map(r => 
+        `<li style="margin-bottom: 8px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
+      ).join('');
 
-    const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const fileDownload = document.createElement("a");
-    fileDownload.href = url;
-    fileDownload.download = 'PashtonMufti_Fatwa.doc';
-    document.body.appendChild(fileDownload);
-    fileDownload.click();
-    document.body.removeChild(fileDownload);
-    URL.revokeObjectURL(url);
+      const header = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Pashton Mufti</title></head><body>`;
+      const footer = "</body></html>";
+      const content = `
+        <div style="text-align: right; direction: rtl; font-family: 'Arial', sans-serif;">
+          <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px;">پښتون مفتي - فقهي ځواب</h1>
+          <div style="background-color: #faf6ee; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+            <strong>پوښتنه:</strong><br/>${qText}
+          </div>
+          <div style="font-size: 16px; line-height: 2; margin-bottom: 30px;">
+            <strong>الجواب حامداً ومصلياً:</strong><br/><br/>${safeAnswer}
+          </div>
+          <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 15px;">
+            <strong>د حنفي فقهي مراجع:</strong>
+            <ul>${safeRefs}</ul>
+          </div>
+        </div>
+      `;
+      const sourceHTML = header + content + footer;
+      const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      
+      const fileDownload = document.createElement("a");
+      fileDownload.href = url;
+      fileDownload.download = `Fatwa_${Date.now()}.doc`;
+      document.body.appendChild(fileDownload);
+      fileDownload.click();
+      
+      setTimeout(() => {
+        document.body.removeChild(fileDownload);
+        URL.revokeObjectURL(url);
+      }, 100);
+    } catch (e) {
+      console.error("Word Download Error: ", e);
+      alert("د ورډ فايل په جوړولو کي تخنيکي ستونزه پېښه سوه.");
+    }
   };
 
-  // د PDF کښته کولو نوی او مسلکي فنکشن (په هماغه پاڼه کي د نورو شيانو پټول)
+  // د PDF ايکسپورټ پټ آی‌فرېم (Hidden iFrame) ټيکنالوژي - د نړيوالو شرکتونو سټنډرډ
   const exportToPDF = (fatwa: Fatwa, qText: string) => {
-    // ۱. يوه موقتي برخه جوړوو چي يوازي همدا فتوا پکي وي
-    const printDiv = document.createElement('div');
-    printDiv.id = 'temp-print-section';
-    printDiv.innerHTML = `
-      <div dir="rtl" style="font-family: 'Cairo', sans-serif; color: #0b1220; line-height: 2.2; padding: 20px;">
-        <h1 style="color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px; font-family: 'Amiri', serif;">پښتون مفتي - فقهي ځواب</h1>
-        <div style="background-color: #faf6ee; padding: 20px; border-radius: 12px; margin-bottom: 25px; border: 1px solid #e5e7eb;">
-          <strong>پوښتنه:</strong><br/>
-          ${qText}
-        </div>
-        <div style="font-size: 1.15rem; margin-bottom: 40px;">
-          <strong>الجواب حامداً ومصلياً:</strong><br/><br/>
-          ${fatwa.answer.replace(/\n/g, "<br/>")}
-        </div>
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px dashed #b08742; font-size: 0.95rem;">
-          <strong>د حنفي فقهي مراجع:</strong>
-          <ul style="padding-right: 20px;">
-            ${fatwa.references.map(r => `<li style="margin-bottom: 10px;"><b>${r.book}</b> (ټوک ${r.volume}، مخ ${r.page}): ${r.text}</li>`).join('')}
-          </ul>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(printDiv);
+    try {
+      const safeAnswer = (fatwa.answer || "").replace(/\n/g, "<br/>");
+      const safeRefs = (fatwa.references || []).map(r => 
+        `<li style="margin-bottom: 10px;"><b>${r.book || ""}</b> (ټوک ${r.volume || ""}، مخ ${r.page || ""}): ${r.text || ""}</li>`
+      ).join('');
 
-    // ۲. يو موقتي سټايل ورکوو چي د سايټ نور ټول شيان پټ کړي او يوازي همدا فتوا پرنټ کړي
-    const style = document.createElement('style');
-    style.id = 'temp-print-style';
-    style.innerHTML = `
-      @media print {
-        body * { visibility: hidden; }
-        #temp-print-section, #temp-print-section * { visibility: visible; }
-        #temp-print-section { position: absolute; left: 0; top: 0; width: 100%; }
-      }
-    `;
-    document.head.appendChild(style);
+      // د پرنټ لپاره يو پټ چوکاټ (iFrame) جوړوو
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
 
-    // ۳. پرنټ را غواړو
-    window.print();
+      const iframeDoc = iframe.contentWindow?.document || iframe.contentDocument;
+      if (!iframeDoc) throw new Error("iFrame not supported");
 
-    // ۴. پرنټ چي خلاص سو، بېرته پاڼه عادي حالت ته راولو
-    setTimeout(() => {
-      const printSec = document.getElementById('temp-print-section');
-      if (printSec) document.body.removeChild(printSec);
-      
-      const styleSec = document.getElementById('temp-print-style');
-      if (styleSec) document.head.removeChild(styleSec);
-    }, 1000);
+      iframeDoc.open();
+      iframeDoc.write(`
+        <html dir="rtl">
+          <head>
+            <title>Fatwa_Print</title>
+            <style>
+              body { font-family: Tahoma, sans-serif; padding: 30px; color: #000; line-height: 2.2; direction: rtl; text-align: right; }
+              h1 { color: #0f3d2e; border-bottom: 2px solid #b08742; padding-bottom: 10px; font-size: 24px; }
+              .box { background-color: #faf6ee; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #ddd; }
+            </style>
+          </head>
+          <body>
+            <h1>پښتون مفتي - فقهي ځواب</h1>
+            <div class="box"><strong>پوښتنه:</strong><br/>${qText}</div>
+            <div class="box" style="background-color: #fff;"><strong>الجواب حامداً ومصلياً:</strong><br/><br/>${safeAnswer}</div>
+            <div style="margin-top: 30px;">
+              <strong>د حنفي فقهي مراجع:</strong>
+              <ul style="padding-right: 20px;">${safeRefs}</ul>
+            </div>
+          </body>
+        </html>
+      `);
+      iframeDoc.close();
+
+      // انتظار باسو تر څو پټ چوکاټ اماده سي، بيا يې پرنټ کوو
+      iframe.onload = () => {
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        
+        // تر پرنټ وروسته پټ چوکاټ ړنګوو
+        setTimeout(() => {
+          document.body.removeChild(iframe);
+        }, 3000);
+      };
+    } catch (e) {
+      console.error("PDF Download Error: ", e);
+      alert("د PDF په پرنټولو کي تخنيکي ستونزه پېښه سوه.");
+    }
   };
 
   return (
@@ -380,14 +391,14 @@ export default function FatwaRoom() {
                 
                 <div className="print:hidden mt-4 flex items-center justify-end gap-3">
                   <button 
-                    onClick={() => exportToPDF(h.fatwa, question || "فقهي پوښتنه")}
+                    onClick={() => exportToPDF(h.fatwa, h.question)}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
                     style={{ color: "var(--theme-main, #0f3d2e)" }}
                   >
                     📄 PDF کښته کړه
                   </button>
                   <button 
-                    onClick={() => exportToWord(h.fatwa, question || "فقهي پوښتنه")}
+                    onClick={() => exportToWord(h.fatwa, h.question)}
                     className="flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:shadow-md"
                     style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
                   >
