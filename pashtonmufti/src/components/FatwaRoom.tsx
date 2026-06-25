@@ -150,11 +150,11 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // اصلاح سوی PDF حل: د viewport دننه (نه -9999px) + د فونټ بشپړ لوډ کيدو ته انتظار
+  // اصلاح سوی PDF حل: د scroll position ستونزه حل سوه + د فونټ لوډ کيدو ته انتظار
   const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
     const element = document.createElement("div");
 
-    element.style.position = "fixed";
+    element.style.position = "absolute";
     element.style.top = "0";
     element.style.left = "0";
     element.style.zIndex = "-9999";
@@ -187,14 +187,23 @@ export default function FatwaRoom() {
     try {
       await document.fonts.ready;
     } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // مهم: د اوسني scroll موقعیت تصحیح — ترڅو html2canvas سمه برخه کاږي
+    const scrollY = window.scrollY || window.pageYOffset || 0;
 
     html2pdf()
       .set({
         margin: 12,
         filename: "Pashton-Mufti-Fatwa.pdf",
         image: { type: "jpeg", quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          scrollX: 0,
+          scrollY: -scrollY,
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       })
       .from(element)
@@ -204,6 +213,7 @@ export default function FatwaRoom() {
       })
       .catch((err: any) => {
         document.body.removeChild(element);
+        alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
         console.error("PDF generation failed:", err);
       });
   };
