@@ -78,7 +78,7 @@ const themes = [
   { name: "تېز زېړ", main: "#d97706", light: "#b45309" },
   { name: "سرو زرو", main: "#b08742", light: "#8a6a32" },
   { name: "خړ", main: "#334155", light: "#1e293b" },
-  { name: "تور", main: "#111111", level: "#222222" },
+  { name: "تور", main: "#111111", light: "#222222" },
   { name: "قهوه يي", main: "#4a2c0f", light: "#381e08" },
   { name: "شاهي سور", main: "#831843", light: "#500724" },
 ];
@@ -150,31 +150,23 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // اصلاح سوی PDF حل: د scroll position ستونزه حل سوه + د فونټ لوډ کيدو ته انتظار
-  const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
-    const element = document.createElement("div");
-
-    element.style.position = "absolute";
-    element.style.top = "0";
-    element.style.left = "0";
-    element.style.zIndex = "-9999";
-    element.style.width = "750px";
-    element.style.background = "white";
-
+  // د مشاور وروستی او تر ټولو مسلکي حل چي هيڅکله سپين مخ نه راوړي
+  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
     const currentTheme = getComputedStyle(document.documentElement).getPropertyValue("--theme-main") || "#0f3d2e";
 
-    element.innerHTML = `
-      <div dir="rtl" style="font-family: ${currentFont}; padding: 35px; color: #111; line-height: 2; text-align: right; direction: rtl;">
-        <h1 style="color: ${currentTheme}; border-bottom: 2px solid #b08742; padding-bottom: 12px; margin-bottom: 25px; font-size: 26px;">
+    // دلته موږ د سکرين سره هيڅ کار نه لرو، مستقيم سټرينګ جوړوو او ماشين ته يې ورکوو
+    const htmlContent = `
+      <div dir="rtl" style="font-family: ${currentFont}; padding: 40px; color: #111; background-color: #ffffff; text-align: right; direction: rtl;">
+        <h1 style="color: ${currentTheme}; border-bottom: 2px solid #b08742; padding-bottom: 15px; margin-bottom: 25px; font-size: 28px;">
           پښتون مفتي - شرعي ځواب
         </h1>
-        <div style="background: #faf6ee; padding: 18px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #e2e8f0; font-size: 16px;">
+        <div style="background-color: #faf6ee; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #e2e8f0; font-size: 18px;">
           <strong>پوښتنه:</strong>
-          <br/>
+          <br/><br/>
           ${questionText}
         </div>
-        <div style="font-size: 18px;">
+        <div style="font-size: 20px; line-height: 2.2;">
           <strong>الجواب حامداً ومصلياً:</strong>
           <br/><br/>
           ${(fatwa.answer || "").replace(/\n/g, "<br/>")}
@@ -182,40 +174,16 @@ export default function FatwaRoom() {
       </div>
     `;
 
-    document.body.appendChild(element);
-
-    try {
-      await document.fonts.ready;
-    } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    // مهم: د اوسني scroll موقعیت تصحیح — ترڅو html2canvas سمه برخه کاږي
-    const scrollY = window.scrollY || window.pageYOffset || 0;
-
     html2pdf()
       .set({
-        margin: 12,
+        margin: [15, 15, 15, 15],
         filename: "Pashton-Mufti-Fatwa.pdf",
         image: { type: "jpeg", quality: 1 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          scrollX: 0,
-          scrollY: -scrollY,
-        },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       })
-      .from(element)
-      .save()
-      .then(() => {
-        document.body.removeChild(element);
-      })
-      .catch((err: any) => {
-        document.body.removeChild(element);
-        alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
-        console.error("PDF generation failed:", err);
-      });
+      .from(htmlContent) // مستقيم کوډ ورکوو، تر څو سکرين او ډوم خطاء نه سي
+      .save();
   };
 
   return (
