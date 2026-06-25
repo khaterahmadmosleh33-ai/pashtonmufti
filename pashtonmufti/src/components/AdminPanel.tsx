@@ -1,20 +1,38 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال او د سايټ تنظيمات.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات او د اې آی مغز.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
 import type { BookStatus } from "../types";
-import { getBooks, getQueueStats, isLiveBackend } from "../lib/api";
+import { 
+  getBooks, 
+  getQueueStats, 
+  isLiveBackend,
+  // دا ۴ نوي فنکشنونه دي چي په api.ts کي به يې جوړوو
+  getAiRules,
+  addAiRule,
+  updateAiRule,
+  deleteAiRule
+} from "../lib/api";
 import UploadModal from "./UploadModal";
 import SingleBookWorkbench from "./SingleBookWorkbench";
 
 type Stats = Awaited<ReturnType<typeof getQueueStats>>;
+
+// د اې آی د قوانينو لپاره نوی ټايپ
+export type AiRule = {
+  id: string;
+  rule_text: string;
+  is_active: boolean;
+  created_at?: string;
+};
 
 export default function AdminPanel() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [books, setBooks] = useState<BookStatus[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"workbench" | "all" | "settings">("workbench");
+  // دلته مو نوی "ai_rules" ليد (View) ور زيات کړ
+  const [view, setView] = useState<"workbench" | "all" | "ai_rules" | "settings">("workbench");
   const [error, setError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
 
@@ -137,7 +155,7 @@ export default function AdminPanel() {
       </div>
 
       {/* د لېدنو tabs */}
-      <div className="mb-6 inline-flex gap-1 rounded-2xl border border-amber-900/15 bg-white/60 p-1">
+      <div className="mb-6 inline-flex flex-wrap gap-1 rounded-2xl border border-amber-900/15 bg-white/60 p-1">
         <button
           onClick={() => setView("workbench")}
           className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
@@ -155,6 +173,14 @@ export default function AdminPanel() {
           📚 ټول کتابونه او قطار
         </button>
         <button
+          onClick={() => setView("ai_rules")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            view === "ai_rules" ? "tab-active bg-emerald-100 text-emerald-900" : "text-emerald-900 hover:bg-amber-50"
+          }`}
+        >
+          🧠 د اې آی مغز (قوانين)
+        </button>
+        <button
           onClick={() => setView("settings")}
           className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
             view === "settings" ? "tab-active" : "text-emerald-900 hover:bg-amber-50"
@@ -170,9 +196,161 @@ export default function AdminPanel() {
       {view === "all" && (
         <AllBooksView stats={stats} books={books} />
       )}
+      {view === "ai_rules" && (
+        <AiRulesView />
+      )}
       {view === "settings" && (
         <SettingsView />
       )}
+    </div>
+  );
+}
+
+// ==========================================
+// د اې آی د مغز او قوانينو (AI Rules) برخه
+// ==========================================
+function AiRulesView() {
+  const [rules, setRules] = useState<AiRule[]>([]);
+  const [newRule, setNewRule] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const fetchRules = async () => {
+    try {
+      setLoading(true);
+      const data = await getAiRules();
+      setRules(data);
+    } catch (e) {
+      console.error("خطا:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRules();
+  }, []);
+
+  const handleAddRule = async () => {
+    if (!newRule.trim()) return;
+    setSubmitting(true);
+    try {
+      await addAiRule(newRule);
+      setNewRule("");
+      await fetchRules();
+    } catch (e) {
+      alert("د قانون په ثبتولو کي ستونزه پېښه سوه.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggle = async (id: string, currentStatus: boolean) => {
+    try {
+      await updateAiRule(id, !currentStatus);
+      await fetchRules();
+    } catch (e) {
+      alert("د قانون په بدلولو کي ستونزه پېښه سوه.");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("آيا غواړی چي دا قانون د تل لپاره ړنګ کړی؟")) return;
+    try {
+      await deleteAiRule(id);
+      await fetchRules();
+    } catch (e) {
+      alert("د قانون په ړنګولو کي ستونزه پېښه سوه.");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="fatwa-card rounded-2xl p-8">
+        <h3 className="mb-2 text-2xl font-bold" style={{ color: "var(--theme-main)" }}>
+          🧠 د مصنوعي ځيرکتيا (AI) مغز او لارښووني
+        </h3>
+        <p className="mb-8 text-sm text-amber-900/80">
+          دلته هغه اصول وليکی چي جيمينای يې بايد د فتوا پر مهال د الهي قانون په څېر په کلکه مراعات کړي. دا قوانين نېغ په نېغه د سوپابيس څخه اې آی ته ورځي.
+        </p>
+        
+        {/* نوی قانون ليکل */}
+        <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
+          <label className="mb-2 block text-sm font-bold text-emerald-900">
+            نوی قانون ور زيات کړی:
+          </label>
+          <div className="flex flex-col gap-3 md:flex-row">
+            <textarea
+              value={newRule}
+              onChange={(e) => setNewRule(e.target.value)}
+              placeholder="د بېلګي په توګه: ځواب بايد په سوچه کندهارۍ پښتو وي او يوازي ۳ عربي ټوټي ولري..."
+              rows={2}
+              className="flex-1 resize-none rounded-xl border border-emerald-900/20 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              dir="rtl"
+            />
+            <button
+              onClick={handleAddRule}
+              disabled={submitting || !newRule.trim()}
+              className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white shadow-md transition-all hover:bg-emerald-800 disabled:opacity-50"
+            >
+              {submitting ? "ثبتيږي..." : "➕ ور زيات يې کړی"}
+            </button>
+          </div>
+        </div>
+
+        {/* د موجوده قوانينو لست */}
+        <div>
+          <h4 className="mb-4 text-lg font-bold text-emerald-900">موجوده فعال او غير فعال قوانين:</h4>
+          
+          {loading ? (
+            <div className="text-sm text-emerald-700">قوانين راټوليږي...</div>
+          ) : rules.length === 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              تر اوسه کوم قانون نه دی ثبت سوی.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {rules.map((rule, index) => (
+                <div 
+                  key={rule.id} 
+                  className={`flex flex-col justify-between gap-4 rounded-xl border p-4 shadow-sm transition-all md:flex-row md:items-center ${rule.is_active ? 'border-emerald-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-75'}`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">
+                        {index + 1}
+                      </span>
+                      <span className={`text-xs font-bold ${rule.is_active ? 'text-emerald-600' : 'text-gray-500'}`}>
+                        {rule.is_active ? 'فعال قانون' : 'غير فعال (بند)'}
+                      </span>
+                    </div>
+                    <p className={`text-sm leading-relaxed ${rule.is_active ? 'text-gray-900 font-medium' : 'text-gray-500 line-through'}`}>
+                      {rule.rule_text}
+                    </p>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 shrink-0 border-t border-gray-100 pt-3 md:border-0 md:pt-0">
+                    <button
+                      onClick={() => handleToggle(rule.id, rule.is_active)}
+                      className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${rule.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}`}
+                    >
+                      {rule.is_active ? 'بند يې کړی' : 'فعال يې کړی'}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(rule.id)}
+                      className="rounded-lg bg-red-50 p-2 text-red-600 transition-all hover:bg-red-100"
+                      title="د تل لپاره ړنګول"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+      </div>
     </div>
   );
 }
@@ -187,7 +365,6 @@ function SettingsView() {
     { name: "کلاسيک (Scheherazade)", value: '"Scheherazade New", serif' },
   ];
 
-  // د کاروونکي د انتخاب سره سم ۲۰ پروفيشنل رنګونه
   const themes = [
     { name: "زمردي شين (Emerald)", main: "#0f3d2e", light: "#14533f" },
     { name: "شين (Green)", main: "#15803d", light: "#166534" },
@@ -246,9 +423,6 @@ function SettingsView() {
                 <div className="mt-2 text-xs text-amber-700">پښتون مفتي</div>
               </button>
             ))}
-          </div>
-          <div className="mt-3 text-xs text-amber-900/70">
-            * د نورو ۲۰ مسلکي فونټونو اضافه کولو کار به د راتلونکي ګام په توګه د ډېټابېس له لاري ترسره کيږي.
           </div>
         </div>
 
@@ -454,56 +628,6 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
               )}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* د چنکنګ پايپلاين */}
-      <div>
-        <h3 className="mb-4 text-xl font-bold text-[#0f3d2e]">
-          د فقهي چنکنګ (Chunking) پايپلاين
-        </h3>
-        <p className="mb-6 text-sm text-amber-950/80">
-          هيڅکله د کلمو په شمېر پرې کول نه کاروو. د کتاب جوړښت (کتاب، باب، فصل،
-          مبحث، مطلب، مسأله، فرع) د پرې کولو بنسټ دی، ترڅو هره ټوټه يوه بشپړه
-          او نه پرې کېدونکې فقهي مسأله وي.
-        </p>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {chunkingPipeline.map((p) => (
-            <div key={p.step} className="fatwa-card rounded-2xl p-5">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-amber-700 text-lg font-bold text-white shadow-md">
-                {p.step}
-              </div>
-              <h4 className="mb-2 text-base font-bold text-emerald-950">
-                {p.title}
-              </h4>
-              <p className="text-xs leading-relaxed text-amber-950/80">
-                {p.detail}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* د سيسټم ۶ خصوصيتونه (له مخ‌پاڼي څخه راوړل سوي) */}
-      <div>
-        <h3 className="mb-4 text-xl font-bold text-[#0f3d2e]">د سيسټم ځانګړتياوي</h3>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-          {[
-            { i: "📜", t: "د حوالې سره" },
-            { i: "🚫", t: "د Hallucination مخنيوی" },
-            { i: "🧠", t: "د فقهي چنکنګ" },
-            { i: "⚡", t: "د pgvector لټون" },
-            { i: "🛡️", t: "د 429 ايرر مخنيوی" },
-            { i: "🕌", t: "حنفي مذهب" },
-          ].map((f) => (
-            <div
-              key={f.t}
-              className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-amber-900/10 bg-white/60 p-4 text-center shadow-sm transition-all hover:bg-white/80"
-            >
-              <div className="text-3xl">{f.i}</div>
-              <div className="text-xs font-bold text-emerald-900">{f.t}</div>
-            </div>
-          ))}
         </div>
       </div>
 
