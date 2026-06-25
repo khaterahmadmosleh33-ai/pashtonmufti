@@ -88,79 +88,59 @@ export async function embedQuery(query) {
 }
 
 // ============================================================
-// SYSTEM PROMPT
+// SYSTEM PROMPT (ثابت بنياد او متحرک قوانين)
 // ============================================================
 
-const SYSTEM_PROMPT = `
+const BASE_SYSTEM_PROMPT = `
 ته يو ستر اسلامي عالم او د حنفي مذهب پوه مفتي يې چي نوم دي «پښتون مفتي» دی.
 
-مهم قواعد:
-
-1. يوازي د ورکړل سوو فقهي مراجعو پر بنسټ ځواب ورکړه.
-
-2. که د پوښتني عين لفظ په مراجعو کي موجود نه وي، نو د نژدې فقهي متنونو څخه استنباط وکړه.
-
-3. که واقعاً هيڅ اړوند متن موجود نه وي، نو ووايه:
-«په موجودو مراجعو کي واضح جواب ونه موندل سو.»
-
-4. ځواب بايد په کندهارۍ پښتو وي.
-
-5. "چې" -> "چي"
-   "کې" -> "کي"
-   "دې" -> "دي"
-   "شي" -> "سي"
-   "شو" -> "سو"
-   "هېڅ" -> "هيڅ"
-
-6. ځواب د:
-"بسم الله الرحمن الرحيم"
-سره پيل کړه.
-
-7. د مراجعو [1] [2] [3] نښانې وکاروه.
-
-8. د ټولو مراجعو متنونه په دقت ولوله.
-يوازي لومړۍ مرجع مه کاروه.
-
-9. که په څو مراجعو کي اړوند معلومات وي،
-هغوی سره يو ځای کړه.
-
-10. د کتاب، باب، فصل او مسئلې نومونو ته پام وکړه.
-
-11. له ځانه فتوا مه جوړوه.
-
-12. ځواب لنډ، علمي او واضح وي.
+مهم او نه ماتېدونکي قواعد:
+1. يوازي او يوازي د ورکړل سوو فقهي مراجعو پر بنسټ ځواب ورکړه.
+2. که واقعاً هيڅ اړوند متن موجود نه وي، نو ووايه: «په موجودو مراجعو کي واضح جواب ونه موندل سو.»
+3. له ځانه فتوا مه جوړوه او د مراجعو څخه دباندي معلومات مه ور زياتوه.
 `.trim();
 
 /**
  * د فتوا جوړول
+ * @param {string} question - د کاروونکي پوښتنه
+ * @param {Array} sources - د فقهي مراجعو ټوټې (Chunks)
+ * @param {Array} activeRules - 🧠 د سوپابيس څخه راغلي متحرک قوانين
  */
-export async function generateFatwa(
-  question,
-  sources
-) {
+export async function generateFatwa(question, sources, activeRules = []) {
   if (!genAI) {
     throw new Error(
       "GEMINI_API_KEY ټاکل سوی نه دی"
     );
   }
 
-  // مخکې ۴ وې، اوس ۱۵
-  const activeSources = sources.slice(0, 15);
+  // د اډمن د اصولو يو ځای کول (Dynamic Brain Injection)
+  let dynamicRulesText = "";
+  if (activeRules.length > 0) {
+    dynamicRulesText = "\n\nد سيسټم د مشر (اډمن) لخوا ستا لپاره ځانګړي اصول او قوانين:\n";
+    activeRules.forEach((rule, index) => {
+      dynamicRulesText += `${index + 1}. ${rule}\n`;
+    });
+  }
+
+  // د جيمينای مکمل او نهايي سيسټم پرامپټ
+  const FINAL_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + dynamicRulesText;
+
+  // مخکې ۴ وې، اوس ۲۵ ته پورته سول تر څو اې آی د ۳ عربي عبارتونو د انتخابولو لپاره زيات مواد ولري
+  const activeSources = sources.slice(0, 25);
 
   const refsBlock = activeSources
     .map((s, i) => {
       const m = s.metadata || {};
 
       return [
-        `[${i + 1}] ${m.book_name || ""}`,
+        `[حواله ${i + 1}] ${m.book_name || ""}`,
         `مؤلف: ${m.author || "—"}`,
         `کتاب: ${m.kitab || "—"}`,
         `فصل: ${m.fasl || "—"}`,
         `مسأله: ${m.masalah || "—"}`,
         `جلد: ${m.volume || "—"}`,
         `مخ: ${m.page || "—"}`,
-        `متن:`,
-        s.arabic_text,
+        `متن:\n${s.arabic_text}`,
       ].join("\n");
     })
     .join("\n\n====================\n\n");
@@ -170,20 +150,19 @@ export async function generateFatwa(
 
 ${question}
 
-# فقهي مراجع
+# فقهي مراجع (يوازي له همدې مراجعو څخه کار واخله)
 
 ${refsBlock}
 
-# ځواب
+# ځواب وليکه:
 `.trim();
 
   const modelList = [
-"gemini-3.1-pro",         // لومړی: تر ټولو قوي او دقيق عالم
-"gemini-3.5-flash",       // دوهم: خورا تېز او نوی ماډل
-"gemini-1.5-pro-latest",  // درېيم: پخوانی قوي ماډل د احتياط دپاره
-"gemini-1.5-flash"        // څلورم: وروستی انتخاب
-];
-
+    "gemini-3.1-pro",         // لومړی: تر ټولو قوي او دقيق عالم
+    "gemini-3.5-flash",       // دوهم: خورا تېز او نوی ماډل
+    "gemini-1.5-pro-latest",  // درېيم: پخوانی قوي ماډل د احتياط دپاره
+    "gemini-1.5-flash"        // څلورم: وروستی انتخاب
+  ];
 
   let lastError = null;
 
@@ -196,7 +175,7 @@ ${refsBlock}
       const model =
         genAI.getGenerativeModel({
           model: modelName,
-          systemInstruction: SYSTEM_PROMPT,
+          systemInstruction: FINAL_SYSTEM_PROMPT,
           generationConfig: {
             temperature: 0.15,
             topP: 0.85,
