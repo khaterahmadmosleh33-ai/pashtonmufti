@@ -139,6 +139,52 @@ export async function getFatwaHistory(limit = 20): Promise<AskResponse[]> {
   }));
 }
 
+// ============================================================
+// نوي فنکشنونه: د اې آی د قوانينو او مغز مديريت
+// ============================================================
+
+export async function getAiRules() {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/rules`);
+  if (!res.ok) throw new Error(await readApiError(res));
+  const d = await res.json();
+  return d.rules || [];
+}
+
+export async function addAiRule(rule_text: string) {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/rules`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rule_text }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res));
+  return res.json();
+}
+
+export async function updateAiRule(id: string, is_active: boolean) {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/rules/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_active }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res));
+  return res.json();
+}
+
+export async function deleteAiRule(id: string) {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/rules/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(await readApiError(res));
+  return res.json();
+}
+
+// ============================================================
+// د خطا لوستلو مرستندوی
+// ============================================================
 async function readApiError(res: Response) {
   try {
     const data = await res.json();
