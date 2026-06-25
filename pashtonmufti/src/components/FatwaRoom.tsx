@@ -17,7 +17,7 @@ type HistoryItem = {
 
 const suggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
-  "د جمعې لمانځه شرطونه کوم دي Regel؟",
+  "د جمعې لمانځه شرطونه کوم دي؟",
   "په زکات کي د نصاب اندازه څونه ده؟",
   "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
@@ -78,7 +78,7 @@ const themes = [
   { name: "تېز زېړ", main: "#d97706", light: "#b45309" },
   { name: "سرو زرو", main: "#b08742", light: "#8a6a32" },
   { name: "خړ", main: "#334155", light: "#1e293b" },
-  { name: "تور", main: "#111111", light: "#222222" },
+  { name: "تور", main: "#111111", level: "#222222" },
   { name: "قهوه يي", main: "#4a2c0f", light: "#381e08" },
   { name: "شاهي سور", main: "#831843", light: "#500724" },
 ];
@@ -150,23 +150,31 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د مشاور د پلانونو مطابق د PDF کښته کولو پرمختللی فنکشن
+  // د مشاور د هوښيار پلان سره سم تر ټولو پرمختللی حل
   const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const element = document.createElement("div");
+    
+    // چوکاټ په زوره د سکرين شاته پټوي تر څو اصلي پاڼي ته زيان ونه رسوي
+    element.style.position = "absolute";
+    element.style.left = "-9999px";
+    element.style.top = "0";
+    element.style.width = "750px"; 
+    element.style.background = "white";
+
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
     const currentTheme = getComputedStyle(document.documentElement).getPropertyValue("--theme-main") || "#0f3d2e";
 
     element.innerHTML = `
-      <div dir="rtl" style="font-family: ${currentFont}; padding: 30px; color: #111; line-height: 2; text-align: right;">
-        <h1 style="color: ${currentTheme}; border-bottom: 2px solid #b08742; padding-bottom: 10px; margin-bottom: 20px; font-size: 24px;">
-          پښتون مفتي
+      <div dir="rtl" style="font-family: ${currentFont}; padding: 35px; color: #111; line-height: 2; text-align: right; direction: rtl;">
+        <h1 style="color: ${currentTheme}; border-bottom: 2px solid #b08742; padding-bottom: 12px; margin-bottom: 25px; font-size: 26px;">
+          پښتون مفتي - شرعي ځواب
         </h1>
-        <div style="background: #faf6ee; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+        <div style="background: #faf6ee; padding: 18px; border-radius: 10px; margin-bottom: 25px; border: 1px solid #e2e8f0; font-size: 16px;">
           <strong>پوښتنه:</strong>
           <br/>
           ${questionText}
         </div>
-        <div style="font-size: 18px; margin-top: 20px;">
+        <div style="font-size: 18px;">
           <strong>الجواب حامداً ومصلياً:</strong>
           <br/><br/>
           ${(fatwa.answer || "").replace(/\n/g, "<br/>")}
@@ -174,16 +182,21 @@ export default function FatwaRoom() {
       </div>
     `;
 
+    document.body.appendChild(element);
+
     html2pdf()
       .set({
-        margin: 15,
-        filename: `Fatwa_${Date.now()}.pdf`,
+        margin: 12,
+        filename: "Pashton-Mufti-Fatwa.pdf",
         image: { type: "jpeg", quality: 1 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       })
       .from(element)
-      .save();
+      .save()
+      .then(() => {
+        document.body.removeChild(element); // تر ډانلوډ وروسته پټ چوکاټ پاکوي
+      });
   };
 
   return (
@@ -193,6 +206,7 @@ export default function FatwaRoom() {
       </div>
 
       <div className="mx-auto max-w-5xl px-6 py-10">
+        
         <div className="mb-8">
           <button 
             onClick={() => setShowSettings(!showSettings)}
@@ -242,7 +256,10 @@ export default function FatwaRoom() {
               ستاسي فقهي پوښتنه:
             </label>
             {history.length > 0 && (
-              <button onClick={clearHistory} className="text-xs font-bold text-amber-700 hover:text-amber-900">
+              <button
+                onClick={clearHistory}
+                className="text-xs font-bold text-amber-700 hover:text-amber-900"
+              >
                 🗑️ د پردې تاريخ پاکول
               </button>
             )}
@@ -263,27 +280,56 @@ export default function FatwaRoom() {
             <button
               onClick={() => ask(question)}
               disabled={loading || !question.trim()}
-              className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl"
+              className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
               style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
             >
               {loading ? "د لټون په حال کي…" : "پوښتنه وکړی"}
             </button>
           </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="text-xs font-bold text-amber-900/70">
+              چټکي پوښتني:
+            </span>
+            {suggestedQuestions.map((q) => (
+              <button
+                key={q}
+                onClick={() => ask(q)}
+                className="rounded-full border border-amber-900/20 bg-amber-50/50 px-3 py-1 text-xs transition-colors hover:bg-amber-100"
+                style={{ color: "var(--theme-main, #0f3d2e)" }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {error && <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">⚠️ {error}</div>}
+        {error && (
+          <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
+            ⚠️ {error}
+          </div>
+        )}
 
         {loading && (
           <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
-            <div className="text-sm font-bold">په معتبرو فقهي کتابونو کي لټون روان دی…</div>
+            <div className="text-sm font-bold">
+              په معتبرو فقهي کتابونو کي لټون روان دی…
+            </div>
           </div>
         )}
 
         {history.length > 0 && !loading && (
           <div className="mt-10 space-y-12">
             {history.map((h, i) => (
-              <div key={h.id} id={i === 0 ? "latest-fatwa" : undefined}>
-                {i > 0 && <div className="ornament my-8 text-xs text-amber-700/60">✦ مخکنۍ پوښتنه ✦</div>}
+              <div 
+                key={h.id} 
+                id={i === 0 ? "latest-fatwa" : undefined} 
+              >
+                {i > 0 && (
+                  <div className="ornament my-8 text-xs text-amber-700/60">
+                    ✦ مخکنۍ پوښتنه ✦
+                  </div>
+                )}
                 
                 <FatwaCard fatwa={h.fatwa} meta={h.fatwa} />
                 
@@ -296,6 +342,7 @@ export default function FatwaRoom() {
                     📄 يوازي دا فتوا PDF کښته کړه
                   </button>
                 </div>
+
               </div>
             ))}
           </div>
