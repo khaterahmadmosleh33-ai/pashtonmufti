@@ -150,15 +150,15 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د مشاور د هوښيار پلان سره سم تر ټولو پرمختللی حل
-  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+  // اصلاح سوی PDF حل: د viewport دننه (نه -9999px) + د فونټ بشپړ لوډ کيدو ته انتظار
+  const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
     const element = document.createElement("div");
-    
-    // چوکاټ په زوره د سکرين شاته پټوي تر څو اصلي پاڼي ته زيان ونه رسوي
-    element.style.position = "absolute";
-    element.style.left = "-9999px";
+
+    element.style.position = "fixed";
     element.style.top = "0";
-    element.style.width = "750px"; 
+    element.style.left = "0";
+    element.style.zIndex = "-9999";
+    element.style.width = "750px";
     element.style.background = "white";
 
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
@@ -184,6 +184,11 @@ export default function FatwaRoom() {
 
     document.body.appendChild(element);
 
+    try {
+      await document.fonts.ready;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
     html2pdf()
       .set({
         margin: 12,
@@ -195,7 +200,11 @@ export default function FatwaRoom() {
       .from(element)
       .save()
       .then(() => {
-        document.body.removeChild(element); // تر ډانلوډ وروسته پټ چوکاټ پاکوي
+        document.body.removeChild(element);
+      })
+      .catch((err: any) => {
+        document.body.removeChild(element);
+        console.error("PDF generation failed:", err);
       });
   };
 
