@@ -96,4 +96,63 @@ router.post("/unlock-stuck-jobs", async (_req, res) => {
   }
 });
 
+
+// ============================================================
+// 🧠 نوي API لاري د اې آی د قوانينو (مغز) لپاره
+// ============================================================
+
+// ۱. د ټولو قوانينو راوړل (يوازي فعال او غير فعال ټول راوړي)
+router.get("/rules", async (_req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT id, rule_text, is_active, created_at 
+      FROM ai_rules 
+      ORDER BY created_at ASC
+    `);
+    res.json({ rules: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ۲. نوی قانون ثبتول
+router.post("/rules", async (req, res) => {
+  try {
+    const { rule_text } = req.body;
+    const { rows } = await pool.query(
+      `INSERT INTO ai_rules (rule_text) VALUES ($1) RETURNING *`,
+      [rule_text]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ۳. د قانون حالت بدلول (فعال / غير فعال)
+router.patch("/rules/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+    const { rows } = await pool.query(
+      `UPDATE ai_rules SET is_active = $1 WHERE id = $2 RETURNING *`,
+      [is_active, id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ۴. د قانون ړنګول د تل لپاره
+router.delete("/rules/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query(`DELETE FROM ai_rules WHERE id = $1`, [id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;
