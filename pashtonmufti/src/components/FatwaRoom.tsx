@@ -98,7 +98,8 @@ export default function FatwaRoom() {
         setHistory(
           items.map((fatwa, i) => ({
             id: `server-${i}`,
-            question: "فقهي پوښتنه", 
+            // دلته مو دا اصلاح کړه چي اصلي پوښتنه راوړي
+            question: fatwa.question || "فقهي پوښتنه (له ارشيف څخه)", 
             fatwa,
             at: Date.now() - i,
           }))
@@ -150,39 +151,56 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د مشاور وروستی او تر ټولو مسلکي حل چي هيڅکله سپين مخ نه راوړي
+  // د رسمي او مسلکي کتاب په څېر د PDF جوړولو فنکشن
   const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
     const currentTheme = getComputedStyle(document.documentElement).getPropertyValue("--theme-main") || "#0f3d2e";
+    const today = new Date().toLocaleDateString('ps-AF');
 
-    // دلته موږ د سکرين سره هيڅ کار نه لرو، مستقيم سټرينګ جوړوو او ماشين ته يې ورکوو
+    // دا کوډ کټ مټ د يوه چاپي کتاب په څېر جوړښت لري (Header, Footer, Justify)
     const htmlContent = `
-      <div dir="rtl" style="font-family: ${currentFont}; padding: 40px; color: #111; background-color: #ffffff; text-align: right; direction: rtl;">
-        <h1 style="color: ${currentTheme}; border-bottom: 2px solid #b08742; padding-bottom: 15px; margin-bottom: 25px; font-size: 28px;">
-          پښتون مفتي - شرعي ځواب
-        </h1>
-        <div style="background-color: #faf6ee; padding: 20px; border-radius: 10px; margin-bottom: 30px; border: 1px solid #e2e8f0; font-size: 18px;">
-          <strong>پوښتنه:</strong>
-          <br/><br/>
-          ${questionText}
+      <div dir="rtl" style="font-family: ${currentFont}; font-size: 16px; color: #111; text-align: justify; direction: rtl; line-height: 2.2;">
+        
+        <!-- د کتاب سرليک (Header) -->
+        <div style="text-align: center; border-bottom: 3px solid ${currentTheme}; margin-bottom: 25px; padding-bottom: 15px;">
+          <h1 style="color: ${currentTheme}; font-size: 32px; margin: 0; font-weight: bold;">پښتون مفتي - دارالافتاء</h1>
+          <p style="font-size: 16px; color: #555; margin-top: 5px;">د شرعي پوښتنو او فقهي مسايلو مستند ځوابونه</p>
         </div>
-        <div style="font-size: 20px; line-height: 2.2;">
-          <strong>الجواب حامداً ومصلياً:</strong>
-          <br/><br/>
-          ${(fatwa.answer || "").replace(/\n/g, "<br/>")}
+
+        <!-- د پوښتني برخه -->
+        <div style="background-color: #fcf9f2; border: 1px solid #e0d8c3; border-radius: 8px; padding: 20px; margin-bottom: 30px; page-break-inside: avoid;">
+          <h3 style="color: #b08742; font-size: 20px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px dashed #e0d8c3; padding-bottom: 5px;">استفتاء (پوښتنه):</h3>
+          <div style="font-size: 18px; font-weight: bold;">${questionText}</div>
         </div>
+
+        <!-- د ځواب برخه -->
+        <div style="padding: 0 5px;">
+          <h3 style="color: ${currentTheme}; font-size: 22px; margin-bottom: 15px;">الجواب حامداً ومصلياً:</h3>
+          <div style="font-size: 18px; text-justify: inter-word;">
+            ${(fatwa.answer || "").replace(/\n/g, "<br/>")}
+          </div>
+        </div>
+
+        <!-- د کتاب پای (Footer) -->
+        <div style="margin-top: 50px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; font-size: 14px; color: #777; page-break-inside: avoid;">
+          دا فتوا د پښتون مفتي سيسټم لخوا چمتو سوې ده.<br/>
+          د چاپ نېټه: ${today}
+        </div>
+
       </div>
     `;
 
+    // دلته مو د اوږدو متنونو لپاره (pagebreak) اصولي کړ
     html2pdf()
       .set({
-        margin: [15, 15, 15, 15],
+        margin: [20, 15, 20, 15], // (پورته، ښي، کښته، کيڼ) حاشيې په ملي متر کي
         filename: "Pashton-Mufti-Fatwa.pdf",
         image: { type: "jpeg", quality: 1 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } // ليکي په نيم کي نه غوڅوي
       })
-      .from(htmlContent) // مستقيم کوډ ورکوو، تر څو سکرين او ډوم خطاء نه سي
+      .from(htmlContent)
       .save();
   };
 
