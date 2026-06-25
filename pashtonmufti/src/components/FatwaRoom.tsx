@@ -1,6 +1,8 @@
 // د مفتي خونه — د کاروونکي او اې آی مفتي ترمنځ د خبرو اترو انټرفيس، د سايټ ښکلا او ډانلوډ.
 
 import { useEffect, useRef, useState } from "react";
+// @ts-ignore
+import html2pdf from "html2pdf.js";
 import { askMufti, getFatwaHistory, isLiveBackend } from "../lib/api";
 import type { Fatwa } from "../types";
 import FatwaCard from "./FatwaCard";
@@ -15,7 +17,7 @@ type HistoryItem = {
 
 const suggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
-  "د جمعې لمانځه شرطونه کوم دي؟",
+  "د جمعې لمانځه شرطونه کوم دي Regel؟",
   "په زکات کي د نصاب اندازه څونه ده؟",
   "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
@@ -87,8 +89,6 @@ export default function FatwaRoom() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
-  
-  const [printId, setPrintId] = useState<string | null>(null);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -150,24 +150,50 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د PDF کښته کولو لپاره خورا ساده او هوښيار فنکشن
-  const handlePrintPDF = (fatwaId: string) => {
-    setPrintId(fatwaId);
-    setTimeout(() => {
-      window.print();
-      setPrintId(null);
-    }, 200);
+  // د مشاور د پلانونو مطابق د PDF کښته کولو پرمختللی فنکشن
+  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+    const element = document.createElement("div");
+    const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
+    const currentTheme = getComputedStyle(document.documentElement).getPropertyValue("--theme-main") || "#0f3d2e";
+
+    element.innerHTML = `
+      <div dir="rtl" style="font-family: ${currentFont}; padding: 30px; color: #111; line-height: 2; text-align: right;">
+        <h1 style="color: ${currentTheme}; border-bottom: 2px solid #b08742; padding-bottom: 10px; margin-bottom: 20px; font-size: 24px;">
+          پښتون مفتي
+        </h1>
+        <div style="background: #faf6ee; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+          <strong>پوښتنه:</strong>
+          <br/>
+          ${questionText}
+        </div>
+        <div style="font-size: 18px; margin-top: 20px;">
+          <strong>الجواب حامداً ومصلياً:</strong>
+          <br/><br/>
+          ${(fatwa.answer || "").replace(/\n/g, "<br/>")}
+        </div>
+      </div>
+    `;
+
+    html2pdf()
+      .set({
+        margin: 15,
+        filename: `Fatwa_${Date.now()}.pdf`,
+        image: { type: "jpeg", quality: 1 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      })
+      .from(element)
+      .save();
   };
 
   return (
     <>
-      <div className="print:hidden">
+      <div>
         <Hero onAsk={scrollToAsk} />
       </div>
 
-      <div className="mx-auto max-w-5xl px-6 py-10 print:p-0 print:m-0">
-        
-        <div className="print:hidden mb-8">
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        <div className="mb-8">
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold shadow-sm transition-all hover:shadow-md border border-amber-900/10"
@@ -210,16 +236,13 @@ export default function FatwaRoom() {
           )}
         </div>
 
-        <div ref={askBoxRef} className="print:hidden fatwa-card rounded-3xl p-6 md:p-8">
+        <div ref={askBoxRef} className="fatwa-card rounded-3xl p-6 md:p-8">
           <div className="mb-3 flex items-center justify-between">
             <label className="text-sm font-bold" style={{ color: "var(--theme-main, #0f3d2e)" }}>
               ستاسي فقهي پوښتنه:
             </label>
             {history.length > 0 && (
-              <button
-                onClick={clearHistory}
-                className="text-xs font-bold text-amber-700 hover:text-amber-900"
-              >
+              <button onClick={clearHistory} className="text-xs font-bold text-amber-700 hover:text-amber-900">
                 🗑️ د پردې تاريخ پاکول
               </button>
             )}
@@ -231,7 +254,7 @@ export default function FatwaRoom() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) ask(question);
               }}
-              placeholder="د بېلګي په توګه: د روژي د نيت وخت کوم دی؟ (Ctrl+Enter د لېږلو لپاره)"
+              placeholder="د بېلګي په توګه: د روژي د نيت وخت کوم دی؟"
               rows={3}
               className="flex-1 resize-none rounded-2xl border border-amber-900/20 bg-white/80 px-4 py-3 text-base placeholder:text-amber-900/40 focus:outline-none focus:ring-2 focus:ring-amber-900/20"
               style={{ color: "var(--theme-main, #0f3d2e)" }}
@@ -240,87 +263,39 @@ export default function FatwaRoom() {
             <button
               onClick={() => ask(question)}
               disabled={loading || !question.trim()}
-              className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+              className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl"
               style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
             >
               {loading ? "د لټون په حال کي…" : "پوښتنه وکړی"}
             </button>
           </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="text-xs font-bold text-amber-900/70">
-              چټکي پوښتني:
-            </span>
-            {suggestedQuestions.map((q) => (
-              <button
-                key={q}
-                onClick={() => ask(q)}
-                className="rounded-full border border-amber-900/20 bg-amber-50/50 px-3 py-1 text-xs transition-colors hover:bg-amber-100"
-                style={{ color: "var(--theme-main, #0f3d2e)" }}
-              >
-                {q}
-              </button>
-            ))}
-          </div>
         </div>
 
-        {error && (
-          <div className="print:hidden mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">
-            ⚠️ {error}
-          </div>
-        )}
+        {error && <div className="mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-900">⚠️ {error}</div>}
 
         {loading && (
-          <div className="print:hidden mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
-            <div className="flex items-center gap-2">
-              <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)" }} />
-              <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)", animationDelay: "0.2s" }} />
-              <span className="pulse-dot h-3 w-3 rounded-full" style={{ backgroundColor: "var(--theme-light, #14533f)", animationDelay: "0.4s" }} />
-            </div>
-            <div className="text-sm font-bold">
-              په معتبرو فقهي کتابونو کي لټون روان دی…
-            </div>
-            <div className="text-xs text-amber-900/70">
-              د ځواب په چمتو کولو کي لږ تم سی…
-            </div>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
+            <div className="text-sm font-bold">په معتبرو فقهي کتابونو کي لټون روان دی…</div>
           </div>
         )}
 
         {history.length > 0 && !loading && (
-          <div className="mt-10 space-y-12 print:space-y-0 print:mt-0 print:p-0">
+          <div className="mt-10 space-y-12">
             {history.map((h, i) => (
-              // دلته مو print:hidden وکاراوه چي خالي ځای هم پرې نه ږدي
-              <div 
-                key={h.id} 
-                className={`print:my-0 print:break-inside-avoid print:p-0 ${printId && printId !== h.id ? 'print:hidden' : 'block'}`}
-              >
-                {i > 0 && (
-                  <div className="print:hidden ornament my-8 text-xs text-amber-700/60">
-                    ✦ مخکنۍ پوښتنه ✦
-                  </div>
-                )}
+              <div key={h.id} id={i === 0 ? "latest-fatwa" : undefined}>
+                {i > 0 && <div className="ornament my-8 text-xs text-amber-700/60">✦ مخکنۍ پوښتنه ✦</div>}
                 
-                <div className="hidden print:block print:mb-4 print:text-xl print:font-bold print:border-b-2 print:border-[#b08742] print:pb-2 print:mb-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
-                  پښتون مفتي - فقهي ځواب
-                </div>
-                
-                <div className="hidden print:block print:bg-[#faf6ee] print:p-4 print:rounded-lg print:mb-6 print:border print:border-gray-200">
-                  <strong>پوښتنه:</strong><br/>
-                  {h.question}
-                </div>
-
                 <FatwaCard fatwa={h.fatwa} meta={h.fatwa} />
                 
-                <div className="print:hidden mt-4 flex items-center justify-end gap-3">
+                <div className="mt-4 flex items-center justify-end gap-3">
                   <button 
-                    onClick={() => handlePrintPDF(h.id)}
+                    onClick={() => handlePrintPDF(h.fatwa, h.question)}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
                     style={{ color: "var(--theme-main, #0f3d2e)" }}
                   >
-                    📄 PDF کښته کړه
+                    📄 يوازي دا فتوا PDF کښته کړه
                   </button>
                 </div>
-
               </div>
             ))}
           </div>
