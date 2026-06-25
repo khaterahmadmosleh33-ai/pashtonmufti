@@ -1,6 +1,6 @@
 // د فتوا د ښودلو کارت — د ځواب متن، د حواله سوو مراجعو لست، او بشپړه جامع حواله.
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Fatwa, FatwaSource } from "../types";
 
 type Props = {
@@ -11,6 +11,19 @@ type Props = {
 export default function FatwaCard({ fatwa, meta }: Props) {
   const [openSource, setOpenSource] = useState<number | null>(0);
   const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [needsExpansion, setNeedsExpansion] = useState(false);
+  const answerRef = useRef<HTMLDivElement>(null);
+
+  // دا برخه ګوري چي آيا د فتوې متن دومره اوږد دی چي «نور لوستل» بټن ته اړتيا ولري که نه.
+  useEffect(() => {
+    if (answerRef.current) {
+      // که د متن اصلي لوړوالی تر ۴۰۰ پيکسل (غوره حد) لوړ وي، نو بټن ښکاره کړه
+      if (answerRef.current.scrollHeight > 400) {
+        setNeedsExpansion(true);
+      }
+    }
+  }, [fatwa.answer]);
 
   const copyAnswer = async () => {
     const citation = fatwa.sources
@@ -25,7 +38,7 @@ export default function FatwaCard({ fatwa, meta }: Props) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      alert("کاپي ونه سو");
+      window.alert("کاپي ونه سو");
     }
   };
 
@@ -70,15 +83,38 @@ export default function FatwaCard({ fatwa, meta }: Props) {
           <div className="mb-1 text-xs font-bold text-amber-900/70">
             پوښتنه:
           </div>
-          <div className="text-emerald-950">{fatwa.question}</div>
+          <div className="text-emerald-950 font-bold leading-relaxed">{fatwa.question}</div>
         </div>
 
-        {/* ځواب */}
-        <div className="font-pashto whitespace-pre-wrap text-lg leading-loose text-emerald-950">
-          {fatwa.answer}
+        {/* ځواب د Read More په سيسټم سمبال */}
+        <div className="relative">
+          <div 
+            ref={answerRef}
+            className={`font-pashto whitespace-pre-wrap text-lg leading-loose text-emerald-950 transition-all duration-500 ease-in-out ${!isExpanded && needsExpansion ? "max-h-[400px] overflow-hidden" : ""}`}
+          >
+            {fatwa.answer}
+          </div>
+          
+          {/* د متن په پای کي سیوری (Fade Out) که چېري متن لنډ سوی وي */}
+          {!isExpanded && needsExpansion && (
+            <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-[#fcf9f2] to-transparent pointer-events-none"></div>
+          )}
         </div>
 
-        <div className="ornament mt-6">۞</div>
+        {/* د Read More بټن */}
+        {needsExpansion && (
+          <div className="mt-4 flex justify-center">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="rounded-full border border-amber-900/20 bg-white px-5 py-2 text-sm font-bold shadow-sm transition-all hover:bg-amber-50 hover:shadow-md"
+              style={{ color: "var(--theme-main, #0f3d2e)" }}
+            >
+              {isExpanded ? "▲ لنډول (پټول)" : "📖 بشپړ ځواب لوستل (نور...)"}
+            </button>
+          </div>
+        )}
+
+        <div className="ornament mt-8">۞</div>
 
         {/* د بشپړي جامعي حوالې برخه */}
         {fatwa.sources.length > 0 && <CitationBlock sources={fatwa.sources} />}
@@ -166,7 +202,7 @@ function SourceItem({
             <div className="mb-2 text-xs font-bold text-amber-700">
               ﴿ د کتاب اصلي متن ﴾
             </div>
-            <div className="font-arabic text-emerald-950" dir="rtl">
+            <div className="font-arabic text-emerald-950 leading-loose" dir="rtl">
               {source.arabicText}
             </div>
           </div>
