@@ -125,8 +125,8 @@ export async function generateFatwa(question, sources, activeRules = []) {
   // د جيمينای مکمل او نهايي سيسټم پرامپټ
   const FINAL_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + dynamicRulesText;
 
-  // مخکې ۲۵ وې، اوس ۱۰ ته راکښته سول تر څو انپوټ ټوکنونه کم سي
-  const activeSources = sources.slice(0, 10);
+  // مخکې ۲۵ وې، اوس ۵ ته راکښته سول تر څو انپوټ ټوکنونه کم سي
+  const activeSources = sources.slice(0, 5);
 
   const refsBlock = activeSources
     .map((s, i) => {
