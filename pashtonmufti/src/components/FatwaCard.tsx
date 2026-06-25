@@ -15,6 +15,9 @@ export default function FatwaCard({ fatwa, meta }: Props) {
   const [needsExpansion, setNeedsExpansion] = useState(false);
   const answerRef = useRef<HTMLDivElement>(null);
 
+  // مراجع ۵ ته راکموي تر څو پر پرده ګډوډي رامينځته نه سي
+  const displaySources = fatwa.sources.slice(0, 5);
+
   // دا برخه ګوري چي آيا د فتوې متن دومره اوږد دی چي «نور لوستل» بټن ته اړتيا ولري که نه.
   useEffect(() => {
     if (answerRef.current) {
@@ -26,7 +29,7 @@ export default function FatwaCard({ fatwa, meta }: Props) {
   }, [fatwa.answer]);
 
   const copyAnswer = async () => {
-    const citation = fatwa.sources
+    const citation = displaySources
       .map(
         (s, i) =>
           `[${i + 1}] ${s.metadata.bookName} — ${s.metadata.author}، جلد ${s.metadata.volume}، مخ ${s.metadata.page}`
@@ -116,22 +119,22 @@ export default function FatwaCard({ fatwa, meta }: Props) {
 
         <div className="ornament mt-8">۞</div>
 
-        {/* د بشپړي جامعي حوالې برخه */}
-        {fatwa.sources.length > 0 && <CitationBlock sources={fatwa.sources} />}
+        {/* د بشپړي جامعي حوالې برخه چي ۵ ته محدوده سوې ده */}
+        {displaySources.length > 0 && <CitationBlock sources={displaySources} />}
       </div>
 
-      {/* د مراجعو راپورته سوي ټوټي */}
-      {fatwa.sources.length > 0 && (
+      {/* د مراجعو راپورته سوي ټوټي چي ۵ ته محدودې سوې دي */}
+      {displaySources.length > 0 && (
         <div>
           <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-[#0f3d2e]">
             <span className="text-amber-600">◆</span>
             راپورته سوي فقهي ټوټي
             <span className="rounded-full bg-emerald-900 px-2.5 py-0.5 text-xs font-bold text-amber-200">
-              {fatwa.sources.length}
+              {displaySources.length}
             </span>
           </h3>
           <div className="space-y-3">
-            {fatwa.sources.map((src, i) => (
+            {displaySources.map((src, i) => (
               <SourceItem
                 key={i}
                 source={src}
