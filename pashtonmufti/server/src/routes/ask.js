@@ -126,10 +126,18 @@ router.post("/", async (req, res) => {
     }
 
     // ========================================================
-    // Gemini جواب جوړوي
+    // 🧠 له ډېټابېس څخه د اډمن د فعالو قوانينو راوړل
+    // ========================================================
+    const { rows: ruleRows } = await pool.query(
+      "SELECT rule_text FROM ai_rules WHERE is_active = true ORDER BY created_at ASC"
+    );
+    const activeRules = ruleRows.map((r) => r.rule_text);
+
+    // ========================================================
+    // Gemini جواب جوړوي (قوانين هم ور لېږل کيږي)
     // ========================================================
     const { answer, model } =
-      await generateFatwa(cleanQuestion, sources);
+      await generateFatwa(cleanQuestion, sources, activeRules);
 
     const latency = Date.now() - t0;
 
