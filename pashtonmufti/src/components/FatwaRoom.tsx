@@ -108,22 +108,78 @@ export default function FatwaRoom() {
       .catch(() => {});
   }, []);
 
+  // د ژوندي ټايپينګ (Streaming) نوی فنکشن
   const ask = async (q: string) => {
     if (!q.trim() || loading) return;
     setError(null);
     setLoading(true);
     setQuestion(q);
+    
+    // د ژوندي ځواب لپاره يو نوی خالي کارډ جوړوو
+    const newId = crypto.randomUUID();
+    let currentAnswer = "";
+    let fatwaMeta: any = { sources: [] };
+
     try {
-      const f = await askMufti(q);
+      // دلته مو د عادي fetch پر ځای SSE کارولی دئ
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+
+      if (!res.ok) throw new Error("د سرور سره اړيکه پرې سوه");
+      if (!res.body) throw new Error("د ځواب راوړلو نل خالي دئ");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      // سمدستي کارډ ښکاره کوو چي ځواب په کي وليدل سي
       setHistory((h) => [
-        { id: crypto.randomUUID(), question: q, fatwa: f, at: Date.now() },
+        { id: newId, question: q, fatwa: { answer: "", sources: [] }, at: Date.now() },
         ...h,
       ]);
+
       setTimeout(() => {
-        document
-          .getElementById("latest-fatwa")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("latest-fatwa")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n\n");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          
+          const dataStr = line.replace("data: ", "").trim();
+          if (!dataStr) continue;
+
+          try {
+            const data = JSON.parse(dataStr);
+
+            if (data.type === "meta") {
+              fatwaMeta = { sources: data.sources, model: data.model, latency_ms: data.latency_ms };
+              setHistory((h) => 
+                h.map(item => item.id === newId ? { ...item, fatwa: { ...item.fatwa, ...fatwaMeta } } : item)
+              );
+            } 
+            else if (data.type === "text") {
+              currentAnswer += data.text;
+              setHistory((h) => 
+                h.map(item => item.id === newId ? { ...item, fatwa: { ...item.fatwa, answer: currentAnswer } } : item)
+              );
+            }
+            else if (data.type === "error") {
+              setError(data.error);
+            }
+          } catch (err) {
+            console.error("د سټريم په لوستلو کي خطا:", err);
+          }
+        }
+      }
     } catch (e: any) {
       setError(e.message || "ستونزه راپيدا سوه");
     } finally {
@@ -161,19 +217,16 @@ export default function FatwaRoom() {
     const htmlContent = `
       <div dir="rtl" style="font-family: ${currentFont}; font-size: 16px; color: #111; text-align: justify; direction: rtl; line-height: 2.2;">
         
-        <!-- د کتاب سرليک (Header) -->
         <div style="text-align: center; border-bottom: 3px solid ${currentTheme}; margin-bottom: 25px; padding-bottom: 15px;">
           <h1 style="color: ${currentTheme}; font-size: 32px; margin: 0; font-weight: bold;">پښتون مفتي - دارالافتاء</h1>
           <p style="font-size: 16px; color: #555; margin-top: 5px;">د شرعي پوښتنو او فقهي مسايلو مستند ځوابونه</p>
         </div>
 
-        <!-- د پوښتني برخه -->
         <div style="background-color: #fcf9f2; border: 1px solid #e0d8c3; border-radius: 8px; padding: 20px; margin-bottom: 30px; page-break-inside: avoid;">
           <h3 style="color: #b08742; font-size: 20px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px dashed #e0d8c3; padding-bottom: 5px;">استفتاء (پوښتنه):</h3>
           <div style="font-size: 18px; font-weight: bold;">${questionText}</div>
         </div>
 
-        <!-- د ځواب برخه -->
         <div style="padding: 0 5px;">
           <h3 style="color: ${currentTheme}; font-size: 22px; margin-bottom: 15px;">الجواب حامداً ومصلياً:</h3>
           <div style="font-size: 18px; text-justify: inter-word;">
@@ -181,7 +234,6 @@ export default function FatwaRoom() {
           </div>
         </div>
 
-        <!-- د کتاب پای (Footer) -->
         <div style="margin-top: 50px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; font-size: 14px; color: #777; page-break-inside: avoid;">
           دا فتوا د پښتون مفتي سيسټم لخوا چمتو سوې ده.<br/>
           د چاپ نېټه: ${today}
