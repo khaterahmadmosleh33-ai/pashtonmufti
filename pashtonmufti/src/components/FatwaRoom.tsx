@@ -98,7 +98,6 @@ export default function FatwaRoom() {
         setHistory(
           items.map((fatwa, i) => ({
             id: `server-${i}`,
-            // دلته مو دا اصلاح کړه چي اصلي پوښتنه راوړي
             question: fatwa.question || "فقهي پوښتنه (له ارشيف څخه)", 
             fatwa,
             at: Date.now() - i,
@@ -108,35 +107,23 @@ export default function FatwaRoom() {
       .catch(() => {});
   }, []);
 
-  // د ژوندي ټايپينګ (Streaming) نوی فنکشن
+  // د ژوندي ټايپينګ خوندي ماشين (Artificial Typing Animation)
   const ask = async (q: string) => {
     if (!q.trim() || loading) return;
     setError(null);
     setLoading(true);
     setQuestion(q);
     
-    // د ژوندي ځواب لپاره يو نوی خالي کارډ جوړوو
-    const newId = crypto.randomUUID();
-    let currentAnswer = "";
-    let fatwaMeta: any = { sources: [] };
-
     try {
-      // دلته مو د عادي fetch پر ځای SSE کارولی دئ
-      const res = await fetch("/api/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
-      });
-
-      if (!res.ok) throw new Error("د سرور سره اړيکه پرې سوه");
-      if (!res.body) throw new Error("د ځواب راوړلو نل خالي دئ");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      // سمدستي کارډ ښکاره کوو چي ځواب په کي وليدل سي
+      // سرور ته عادي او خوندي پوښتنه لېږو
+      const f = await askMufti(q);
+      
+      const newId = crypto.randomUUID();
+      const fullAnswer = f.answer; // اصلي بشپړ ځواب
+      
+      // لومړی کارډ خالي جوړوو چي توري يو يو پکي وليکل سي
       setHistory((h) => [
-        { id: newId, question: q, fatwa: { answer: "", sources: [] }, at: Date.now() },
+        { id: newId, question: q, fatwa: { ...f, answer: "" }, at: Date.now() },
         ...h,
       ]);
 
@@ -144,42 +131,22 @@ export default function FatwaRoom() {
         document.getElementById("latest-fatwa")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
+      let index = 0;
+      const speed = 2; // په يوه ځل څو توري وليکي (هر څومره چي غټ وي تېز ليکي)
+      
+      const typingInterval = setInterval(() => {
+        index += speed;
+        const currentText = fullAnswer.slice(0, index);
+        
+        setHistory((h) => 
+          h.map(item => item.id === newId ? { ...item, fatwa: { ...item.fatwa, answer: currentText } } : item)
+        );
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n\n");
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          
-          const dataStr = line.replace("data: ", "").trim();
-          if (!dataStr) continue;
-
-          try {
-            const data = JSON.parse(dataStr);
-
-            if (data.type === "meta") {
-              fatwaMeta = { sources: data.sources, model: data.model, latency_ms: data.latency_ms };
-              setHistory((h) => 
-                h.map(item => item.id === newId ? { ...item, fatwa: { ...item.fatwa, ...fatwaMeta } } : item)
-              );
-            } 
-            else if (data.type === "text") {
-              currentAnswer += data.text;
-              setHistory((h) => 
-                h.map(item => item.id === newId ? { ...item, fatwa: { ...item.fatwa, answer: currentAnswer } } : item)
-              );
-            }
-            else if (data.type === "error") {
-              setError(data.error);
-            }
-          } catch (err) {
-            console.error("د سټريم په لوستلو کي خطا:", err);
-          }
+        if (index >= fullAnswer.length) {
+          clearInterval(typingInterval);
         }
-      }
+      }, 15); // هر ۱۵ ميلي ثانيې وروسته توري زياتوي
+
     } catch (e: any) {
       setError(e.message || "ستونزه راپيدا سوه");
     } finally {
@@ -207,13 +174,11 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  // د رسمي او مسلکي کتاب په څېر د PDF جوړولو فنکشن
   const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
     const currentTheme = getComputedStyle(document.documentElement).getPropertyValue("--theme-main") || "#0f3d2e";
     const today = new Date().toLocaleDateString('ps-AF');
 
-    // دا کوډ کټ مټ د يوه چاپي کتاب په څېر جوړښت لري (Header, Footer, Justify)
     const htmlContent = `
       <div dir="rtl" style="font-family: ${currentFont}; font-size: 16px; color: #111; text-align: justify; direction: rtl; line-height: 2.2;">
         
@@ -242,15 +207,14 @@ export default function FatwaRoom() {
       </div>
     `;
 
-    // دلته مو د اوږدو متنونو لپاره (pagebreak) اصولي کړ
     html2pdf()
       .set({
-        margin: [20, 15, 20, 15], // (پورته، ښي، کښته، کيڼ) حاشيې په ملي متر کي
+        margin: [20, 15, 20, 15], 
         filename: "Pashton-Mufti-Fatwa.pdf",
         image: { type: "jpeg", quality: 1 },
         html2canvas: { scale: 2, useCORS: true, letterRendering: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } // ليکي په نيم کي نه غوڅوي
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
       })
       .from(htmlContent)
       .save();
