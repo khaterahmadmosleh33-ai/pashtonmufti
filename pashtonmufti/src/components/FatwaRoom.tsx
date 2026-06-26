@@ -174,47 +174,33 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+    const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
-    const currentTheme = getComputedStyle(document.documentElement).getPropertyValue("--theme-main") || "#0f3d2e";
-    const today = new Date().toLocaleDateString('ps-AF');
-
+    
+    // دلته مو ټول اضافي او خپلسر ليکني (Footer/Header) حذف کړې
     const htmlContent = `
-      <div dir="rtl" style="font-family: ${currentFont}; font-size: 16px; color: #111; text-align: justify; direction: rtl; line-height: 2.2;">
+      <div dir="rtl" style="font-family: ${currentFont}; font-size: 16px; color: #111; line-height: 1.8;">
         
-        <div style="text-align: center; border-bottom: 3px solid ${currentTheme}; margin-bottom: 25px; padding-bottom: 15px;">
-          <h1 style="color: ${currentTheme}; font-size: 32px; margin: 0; font-weight: bold;">پښتون مفتي - دارالافتاء</h1>
-          <p style="font-size: 16px; color: #555; margin-top: 5px;">د شرعي پوښتنو او فقهي مسايلو مستند ځوابونه</p>
+        <div style="margin-bottom: 30px;">
+          <h3 style="font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">پوښتنه:</h3>
+          <p>${questionText}</p>
         </div>
 
-        <div style="background-color: #fcf9f2; border: 1px solid #e0d8c3; border-radius: 8px; padding: 20px; margin-bottom: 30px; page-break-inside: avoid;">
-          <h3 style="color: #b08742; font-size: 20px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px dashed #e0d8c3; padding-bottom: 5px;">استفتاء (پوښتنه):</h3>
-          <div style="font-size: 18px; font-weight: bold;">${questionText}</div>
+        <div style="margin-top: 20px;">
+          <h3 style="font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">ځواب:</h3>
+          <div>${(fatwa.answer || "").replace(/\n/g, "<br/>")}</div>
         </div>
-
-        <div style="padding: 0 5px;">
-          <h3 style="color: ${currentTheme}; font-size: 22px; margin-bottom: 15px;">الجواب حامداً ومصلياً:</h3>
-          <div style="font-size: 18px; text-justify: inter-word;">
-            ${(fatwa.answer || "").replace(/\n/g, "<br/>")}
-          </div>
-        </div>
-
-        <div style="margin-top: 50px; border-top: 1px dashed #ccc; padding-top: 15px; text-align: center; font-size: 14px; color: #777; page-break-inside: avoid;">
-          دا فتوا د پښتون مفتي سيسټم لخوا چمتو سوې ده.<br/>
-          د چاپ نېټه: ${today}
-        </div>
-
       </div>
     `;
 
     html2pdf()
       .set({
-        margin: [20, 15, 20, 15], 
-        filename: "Pashton-Mufti-Fatwa.pdf",
-        image: { type: "jpeg", quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        margin: 15,
+        filename: "Fatwa.pdf",
+        html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] } 
+        // دا برخه د ليکو د غوڅېدو مخنيوی کوي
+        pagebreak: { mode: ['css', 'legacy'] }
       })
       .from(htmlContent)
       .save();
