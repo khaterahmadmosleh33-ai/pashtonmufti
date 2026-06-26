@@ -174,21 +174,19 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-    const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+      const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
     
-    // دلته مو ټول اضافي او خپلسر ليکني (Footer/Header) حذف کړې
+    // دلته مو د متن د غوڅېدو د مخنيوي لپاره 'page-break-inside: avoid' ور اضافه کړ
     const htmlContent = `
-      <div dir="rtl" style="font-family: ${currentFont}; font-size: 16px; color: #111; line-height: 1.8;">
-        
-        <div style="margin-bottom: 30px;">
-          <h3 style="font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">پوښتنه:</h3>
-          <p>${questionText}</p>
+      <div dir="rtl" style="font-family: ${currentFont}; font-size: 14px; color: #111; line-height: 1.6; padding: 10px;">
+        <div style="margin-bottom: 20px; page-break-inside: avoid;">
+          <h3 style="font-size: 16px; font-weight: bold; border-bottom: 2px solid #0f3d2e; padding-bottom: 5px; color: #0f3d2e;">پوښتنه:</h3>
+          <p style="margin: 10px 0;">${questionText}</p>
         </div>
-
         <div style="margin-top: 20px;">
-          <h3 style="font-size: 18px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 5px;">ځواب:</h3>
-          <div>${(fatwa.answer || "").replace(/\n/g, "<br/>")}</div>
+          <h3 style="font-size: 16px; font-weight: bold; border-bottom: 2px solid #0f3d2e; padding-bottom: 5px; color: #0f3d2e;">ځواب:</h3>
+          <div style="margin-top: 10px;">${(fatwa.answer || "").replace(/\n/g, "<br/>")}</div>
         </div>
       </div>
     `;
@@ -196,11 +194,17 @@ export default function FatwaRoom() {
     html2pdf()
       .set({
         margin: 15,
-        filename: "Fatwa.pdf",
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        // دا برخه د ليکو د غوڅېدو مخنيوی کوي
-        pagebreak: { mode: ['css', 'legacy'] }
+        filename: "Pashton-Mufti-Fatwa.pdf",
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          letterRendering: true,
+          windowWidth: document.documentElement.offsetWidth 
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        // دا د ليکو د پرې کېدو د مخنيوي لپاره تر ټولو قوي لار ده
+        pagebreak: { mode: 'css', avoid: ['h3', 'p', 'div'] } 
       })
       .from(htmlContent)
       .save();
