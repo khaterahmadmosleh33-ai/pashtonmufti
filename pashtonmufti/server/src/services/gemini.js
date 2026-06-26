@@ -1,5 +1,5 @@
 // ============================================================
-// د Google Gemini خدمت - (سټريمينګ / Live Typing نسخه)
+// د Google Gemini خدمت او د پښتون مفتي اوسپنيز قواعد
 // ============================================================
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -8,88 +8,38 @@ import "dotenv/config";
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-  console.warn(
-    "⚠️ [gemini] GEMINI_API_KEY نه دی ټاکل سوی."
-  );
+  console.warn("⚠️ [gemini] GEMINI_API_KEY نه دی ټاکل سوی.");
 }
 
-const genAI = apiKey
-  ? new GoogleGenerativeAI(apiKey)
-  : null;
+const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+const EMBED_MODEL = process.env.GEMINI_EMBED_MODEL || "text-embedding-004";
 
-const EMBED_MODEL =
-  process.env.GEMINI_EMBED_MODEL ||
-  "text-embedding-004";
-
-/**
- * د سند ويکټورول
- */
 export async function embedText(text) {
-  if (!genAI) {
-    throw new Error(
-      "GEMINI_API_KEY ټاکل سوی نه دی"
-    );
-  }
+  if (!genAI) throw new Error("GEMINI_API_KEY ټاکل سوی نه دی");
+  if (!text || !text.trim()) throw new Error("د ويکټورولو لپاره خالي متن ورکړل سو");
 
-  if (!text || !text.trim()) {
-    throw new Error(
-      "د ويکټورولو لپاره خالي متن ورکړل سو"
-    );
-  }
-
-  const model = genAI.getGenerativeModel({
-    model: EMBED_MODEL,
-  });
-
+  const model = genAI.getGenerativeModel({ model: EMBED_MODEL });
   const result = await model.embedContent({
-    content: {
-      role: "user",
-      parts: [{ text }],
-    },
+    content: { role: "user", parts: [{ text }] },
     taskType: "RETRIEVAL_DOCUMENT",
     outputDimensionality: 768,
   });
 
   const vec = result?.embedding?.values;
-
-  if (!Array.isArray(vec) || vec.length === 0) {
-    throw new Error(
-      "Gemini له ويکټور پرته ځواب راليږلی"
-    );
-  }
-
+  if (!Array.isArray(vec) || vec.length === 0) throw new Error("Gemini له ويکټور پرته ځواب راليږلی");
   return vec;
 }
 
-/**
- * د پوښتني ويکټورول
- */
 export async function embedQuery(query) {
-  if (!genAI) {
-    throw new Error(
-      "GEMINI_API_KEY ټاکل سوی نه دی"
-    );
-  }
-
-  const model = genAI.getGenerativeModel({
-    model: EMBED_MODEL,
-  });
-
+  if (!genAI) throw new Error("GEMINI_API_KEY ټاکل سوی نه دی");
+  const model = genAI.getGenerativeModel({ model: EMBED_MODEL });
   const result = await model.embedContent({
-    content: {
-      role: "user",
-      parts: [{ text: query }],
-    },
+    content: { role: "user", parts: [{ text: query }] },
     taskType: "RETRIEVAL_QUERY",
     outputDimensionality: 768,
   });
-
   return result?.embedding?.values || [];
 }
-
-// ============================================================
-// SYSTEM PROMPT (ثابت بنياد او متحرک قوانين)
-// ============================================================
 
 const BASE_SYSTEM_PROMPT = `
 ته يو ستر اسلامي عالم او د حنفي مذهب پوه مفتي يې چي نوم دي «پښتون مفتي» دی.
@@ -101,18 +51,9 @@ const BASE_SYSTEM_PROMPT = `
 4. ⛔ قطعي امر: د ځواب په پای کي په هيڅ صورت "مأخذونه او مراجع" يا بل کوم اضافي لست مه جوړوه! هماغه ۳ عربي عبارتونه ستا يوازنۍ حوالې دي او بس. ځواب بايد تر تفصيل او ۳ عربي عبارتونو وروسته سمدستي ختم سي او ورپسې هيڅ اضافي متن يا لست ونه ليکل سي.
 `.trim();
 
-/**
- * د فتوا جوړول (سټريمينګ)
- * اوس دا فنکشن يو 'stream' رالېږي پر ځای د يوه بشپړ ځواب
- */
 export async function generateFatwa(question, sources, activeRules = []) {
-  if (!genAI) {
-    throw new Error(
-      "GEMINI_API_KEY ټاکل سوی نه دی"
-    );
-  }
+  if (!genAI) throw new Error("GEMINI_API_KEY ټاکل سوی نه دی");
 
-  // د اډمن د اصولو يو ځای کول
   let dynamicRulesText = "";
   if (activeRules.length > 0) {
     dynamicRulesText = "\n\n⚠️ خورا مهم: د سيسټم د مشر (اډمن) لخوا ستا لپاره لاندي قطعي او نه ماتېدونکي اصول ټاکل سوي دي. که دي له دې اصولو څخه يوه ذره هم سرغړونه وکړه، ځواب دي بيخي د منلو وړ نه دئ:\n";
@@ -122,94 +63,68 @@ export async function generateFatwa(question, sources, activeRules = []) {
   }
 
   const FINAL_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + dynamicRulesText;
-
   const activeSources = sources.slice(0, 5);
 
-  const refsBlock = activeSources
-    .map((s, i) => {
-      const m = s.metadata || {};
-      return [
-        `[حواله ${i + 1}] ${m.book_name || ""}`,
-        `مؤلف: ${m.author || "—"}`,
-        `کتاب: ${m.kitab || "—"}`,
-        `فصل: ${m.fasl || "—"}`,
-        `مسأله: ${m.masalah || "—"}`,
-        `جلد: ${m.volume || "—"}`,
-        `مخ: ${m.page || "—"}`,
-        `متن:\n${s.arabic_text}`,
-      ].join("\n");
-    })
-    .join("\n\n====================\n\n");
+  const refsBlock = activeSources.map((s, i) => {
+    const m = s.metadata || {};
+    return [
+      `[حواله ${i + 1}] ${m.book_name || ""}`,
+      `مؤلف: ${m.author || "—"}`,
+      `کتاب: ${m.kitab || "—"}`,
+      `فصل: ${m.fasl || "—"}`,
+      `مسأله: ${m.masalah || "—"}`,
+      `جلد: ${m.volume || "—"}`,
+      `مخ: ${m.page || "—"}`,
+      `متن:\n${s.arabic_text}`,
+    ].join("\n");
+  }).join("\n\n====================\n\n");
 
   const userPrompt = `
 # پوښتنه
-
 ${question}
 
 # فقهي مراجع (يوازي له همدې مراجعو څخه کار واخله)
-
 ${refsBlock}
 
 # لارښوونه:
 يوازي پورته قواعد پلي کړه. اول بشپړ پښتو ځواب وليکه، بيا هغه ۳ عربي عبارتونه د حوالو سره راوړه. ⛔ خبرداری: په پای کي د مراجعو هيڅ اضافي لست مه ليکه او خپله خبره سمدستي ختمه کړه!
 `.trim();
 
-    // ماډلونه مو داسي ترتيب کړل چي لومړی چټک او فعال ماډل کار وکړي
+  // ستا غوښتل سوی ترتيب (تر ټولو نوي ماډلونه اول)
   const modelList = [
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
-    // دا نوي ماډلونه مو لاندي کړه، چي که کله ګوګل په اې پي آی کي فعال کړل، بيا يې وکاروي
     "gemini-3.5-flash",
     "gemini-3.1-pro",
     "gemini-2.5-pro",
-    "gemini-2.5-flash"
+    "gemini-2.5-flash",
+    "gemini-1.5-pro",
+    "gemini-1.5-flash"
   ];
 
   let lastError = null;
 
   for (const modelName of modelList) {
     try {
-      console.log(
-        `[Gemini] هڅه د ${modelName} (سټريمينګ)`
-      );
-
-      const model =
-        genAI.getGenerativeModel({
-          model: modelName,
-          systemInstruction: FINAL_SYSTEM_PROMPT,
-          generationConfig: {
-            temperature: 0.15,
-            topP: 0.85,
-            maxOutputTokens: 8192,
-          },
-        });
-
-      // دلته مو تر ټولو لوی بدلون راوست: generateContentStream
-      const resultStream = await model.generateContentStream(userPrompt);
-
-      // که ماډل کار وکړ او استريم يې پيل کړ، سمدستي يې بيرته لېږو
-      return {
-        stream: resultStream.stream,
+      console.log(`[Gemini] هڅه د ${modelName}`);
+      const model = genAI.getGenerativeModel({
         model: modelName,
-      };
-      
+        systemInstruction: FINAL_SYSTEM_PROMPT,
+        generationConfig: { temperature: 0.15, topP: 0.85, maxOutputTokens: 8192 },
+      });
+
+      const result = await model.generateContent(userPrompt);
+      const answer = result?.response?.text?.() || "";
+
+      if (answer.trim()) {
+        return { answer: answer.trim(), model: modelName };
+      }
     } catch (err) {
       lastError = err;
-      console.error(
-        `[Gemini] ${modelName} خطا:`,
-        err.message
-      );
+      console.error(`[Gemini] ${modelName} خطا:`, err.message);
     }
   }
 
-  console.error(
-    "[Gemini] ټول ماډلونه ناکام سول:",
-    lastError?.message
-  );
-
   return {
-    stream: null,
+    answer: "په موجودو مراجعو کي واضح جواب ونه موندل سو. (تخنيکي ستونزه رامينځته سوه)",
     model: "ALL_MODELS_FAILED",
-    error: "تخنيکي ستونزه رامينځته سوه، هيڅ ماډل کار نه کوي."
   };
 }
