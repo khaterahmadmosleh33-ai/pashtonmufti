@@ -132,7 +132,7 @@ export default function FatwaRoom() {
       }, 100);
 
       let index = 0;
-      const speed = 2; // په يوه ځل څو توري وليکي (هر څومره چي غټ وي تېز ليکي)
+      const speed = 1; // په يوه ځل څو توري وليکي (هر څومره چي غټ وي تېز ليکي)
       
       const typingInterval = setInterval(() => {
         index += speed;
@@ -145,7 +145,7 @@ export default function FatwaRoom() {
         if (index >= fullAnswer.length) {
           clearInterval(typingInterval);
         }
-      }, 15); // هر ۱۵ ميلي ثانيې وروسته توري زياتوي
+      }, 35); // هر ۳۵ ميلي ثانيې وروسته توري زياتوي
 
     } catch (e: any) {
       setError(e.message || "ستونزه راپيدا سوه");
