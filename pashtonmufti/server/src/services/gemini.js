@@ -1,5 +1,5 @@
 // ============================================================
-// د Google Gemini خدمت
+// د Google Gemini خدمت - (سټريمينګ / Live Typing نسخه)
 // ============================================================
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -94,17 +94,16 @@ export async function embedQuery(query) {
 const BASE_SYSTEM_PROMPT = `
 ته يو ستر اسلامي عالم او د حنفي مذهب پوه مفتي يې چي نوم دي «پښتون مفتي» دی.
 
-مهم او نه ماتېدونکي قواعد:
-1. يوازي او يوازي د ورکړل سوو فقهي مراجعو پر بنسټ ځواب ورکړه.
+مهم او اوسپنيز قواعد چي بايد په کلکه تطبيق سي:
+1. يوازي او يوازي د ورکړل سوو فقهي مراجعو پر بنسټ يو روان، تفصيلي او علمي پښتو ځواب وليکه.
 2. که واقعاً هيڅ اړوند متن موجود نه وي، نو ووايه: «په موجودو مراجعو کي واضح جواب ونه موندل سو.»
-3. له ځانه فتوا مه جوړوه او د مراجعو څخه دباندي معلومات مه ور زياتوه.
+3. د پښتو ځواب په مينځ کي يا پای کي، نېغ په نېغه له مراجعو څخه يوازي او يوازي ۳ تر ټولو مهم او دقيق عربي عبارتونه د خپلو حوالو (کتاب، جلد، مخ) سره وليکه.
+4. ⛔ قطعي امر: د ځواب په پای کي په هيڅ صورت "مأخذونه او مراجع" يا بل کوم اضافي لست مه جوړوه! هماغه ۳ عربي عبارتونه ستا يوازنۍ حوالې دي او بس. ځواب بايد تر تفصيل او ۳ عربي عبارتونو وروسته سمدستي ختم سي او ورپسې هيڅ اضافي متن يا لست ونه ليکل سي.
 `.trim();
 
 /**
- * د فتوا جوړول
- * @param {string} question - د کاروونکي پوښتنه
- * @param {Array} sources - د فقهي مراجعو ټوټې (Chunks)
- * @param {Array} activeRules - 🧠 د سوپابيس څخه راغلي متحرک قوانين
+ * د فتوا جوړول (سټريمينګ)
+ * اوس دا فنکشن يو 'stream' رالېږي پر ځای د يوه بشپړ ځواب
  */
 export async function generateFatwa(question, sources, activeRules = []) {
   if (!genAI) {
@@ -113,25 +112,22 @@ export async function generateFatwa(question, sources, activeRules = []) {
     );
   }
 
-  // د اډمن د اصولو يو ځای کول (Dynamic Brain Injection)
+  // د اډمن د اصولو يو ځای کول
   let dynamicRulesText = "";
   if (activeRules.length > 0) {
-    dynamicRulesText = "\n\nد سيسټم د مشر (اډمن) لخوا ستا لپاره ځانګړي اصول او قوانين:\n";
+    dynamicRulesText = "\n\n⚠️ خورا مهم: د سيسټم د مشر (اډمن) لخوا ستا لپاره لاندي قطعي او نه ماتېدونکي اصول ټاکل سوي دي. که دي له دې اصولو څخه يوه ذره هم سرغړونه وکړه، ځواب دي بيخي د منلو وړ نه دئ:\n";
     activeRules.forEach((rule, index) => {
       dynamicRulesText += `${index + 1}. ${rule}\n`;
     });
   }
 
-  // د جيمينای مکمل او نهايي سيسټم پرامپټ
   const FINAL_SYSTEM_PROMPT = BASE_SYSTEM_PROMPT + dynamicRulesText;
 
-  // مخکې ۲۵ وې، اوس ۵ ته راکښته سول تر څو انپوټ ټوکنونه کم سي
   const activeSources = sources.slice(0, 5);
 
   const refsBlock = activeSources
     .map((s, i) => {
       const m = s.metadata || {};
-
       return [
         `[حواله ${i + 1}] ${m.book_name || ""}`,
         `مؤلف: ${m.author || "—"}`,
@@ -154,11 +150,13 @@ ${question}
 
 ${refsBlock}
 
-# ځواب وليکه:
+# لارښوونه:
+يوازي پورته قواعد پلي کړه. اول بشپړ پښتو ځواب وليکه، بيا هغه ۳ عربي عبارتونه د حوالو سره راوړه. ⛔ خبرداری: په پای کي د مراجعو هيڅ اضافي لست مه ليکه او خپله خبره سمدستي ختمه کړه!
 `.trim();
 
-  // د ماډلونو نوی لست
   const modelList = [
+    "gemini-3.5-flash",
+    "gemini-3.1-pro",
     "gemini-2.5-pro",
     "gemini-2.5-flash",
     "gemini-1.5-pro",
@@ -170,7 +168,7 @@ ${refsBlock}
   for (const modelName of modelList) {
     try {
       console.log(
-        `[Gemini] هڅه د ${modelName}`
+        `[Gemini] هڅه د ${modelName} (سټريمينګ)`
       );
 
       const model =
@@ -184,31 +182,17 @@ ${refsBlock}
           },
         });
 
-      const result =
-        await model.generateContent(
-          userPrompt
-        );
+      // دلته مو تر ټولو لوی بدلون راوست: generateContentStream
+      const resultStream = await model.generateContentStream(userPrompt);
 
-      const finishReason =
-        result?.response?.candidates?.[0]?.finishReason;
-
-      console.log(
-        "[Gemini] Finish Reason:",
-        finishReason
-      );
-
-      const answer =
-        result?.response?.text?.() || "";
-
-      if (answer.trim()) {
-        return {
-          answer: answer.trim(),
-          model: modelName,
-        };
-      }
+      // که ماډل کار وکړ او استريم يې پيل کړ، سمدستي يې بيرته لېږو
+      return {
+        stream: resultStream.stream,
+        model: modelName,
+      };
+      
     } catch (err) {
       lastError = err;
-
       console.error(
         `[Gemini] ${modelName} خطا:`,
         err.message
@@ -222,9 +206,8 @@ ${refsBlock}
   );
 
   return {
-    answer:
-      "په موجودو مراجعو کي واضح جواب ونه موندل سو. (تخنيکي ستونزه رامنځته سوه)",
+    stream: null,
     model: "ALL_MODELS_FAILED",
+    error: "تخنيکي ستونزه رامينځته سوه، هيڅ ماډل کار نه کوي."
   };
 }
-
