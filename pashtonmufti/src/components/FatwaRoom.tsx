@@ -242,11 +242,10 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
   const A4_WIDTH = 794;
   const A4_HEIGHT = 1123;
 
-  // دا اصلي خوندي حاشیې دي. که بغل لا نږدې ښکاري، SIDE_PADDING زیات کړئ.
-const TOP_PADDING = 50;
-const SIDE_PADDING_RIGHT = 15;
-const SIDE_PADDING_LEFT = 15;
-const BOTTOM_PADDING = 50;
+  const TOP_PADDING = 50;
+  const SIDE_PADDING_RIGHT = 15;
+  const SIDE_PADDING_LEFT = 15;
+  const BOTTOM_PADDING = 50;
 
   const createPage = () => {
     const page = document.createElement("div");
@@ -293,8 +292,8 @@ const BOTTOM_PADDING = 50;
 
     title.innerHTML = text;
     title.style.margin = "0 0 24px 0";
-    title.style.padding = "0 0 10px 0";
-    title.style.borderBottom = `3px solid ${themeColor}`;
+    title.style.padding = "0";
+    title.style.borderBottom = "none";
     title.style.color = themeColor;
     title.style.fontFamily = headingFont;
     title.style.fontSize = "29px";
@@ -354,6 +353,42 @@ const BOTTOM_PADDING = 50;
     }
   };
 
+  const appendQuestionGreenLine = () => {
+    const line = document.createElement("div");
+
+    line.style.width = "100%";
+    line.style.height = "3px";
+    line.style.background = themeColor;
+    line.style.margin = "10px 0 28px 0";
+    line.style.padding = "0";
+
+    currentContent.appendChild(line);
+
+    if (isOverflowing()) {
+      line.remove();
+      newPage();
+      currentContent.appendChild(line);
+    }
+  };
+
+  const appendAnswerEndLine = () => {
+    const line = document.createElement("div");
+
+    line.style.width = "100%";
+    line.style.height = "3px";
+    line.style.background = themeColor;
+    line.style.margin = "18px 0 0 0";
+    line.style.padding = "0";
+
+    currentContent.appendChild(line);
+
+    if (isOverflowing()) {
+      line.remove();
+      newPage();
+      currentContent.appendChild(line);
+    }
+  };
+
   const appendTextSmart = (rawText: string, isQuestion = false) => {
     const cleanText = String(rawText || "").replace(/\s+/g, " ").trim();
 
@@ -372,7 +407,6 @@ const BOTTOM_PADDING = 50;
       if (isOverflowing()) {
         p.innerHTML = currentText;
 
-        // که حتی یو ټکی هم په موجوده مخ کي ځای نه نیسي، نوی مخ شروع کوو.
         if (!currentText) {
           p.remove();
           newPage();
@@ -398,14 +432,12 @@ const BOTTOM_PADDING = 50;
 
   const appendParagraph = (paragraphText: string, isQuestion = false) => {
     appendTextSmart(paragraphText, isQuestion);
-
-    // دا یوازي د مکمل پاراګراف وروسته لږ فاصله ورکوي.
-    // د پاڼې په منځ کي د پاراګراف ماتېدو پر وخت غټ پرېکون نه جوړوي.
     appendSpacer(isQuestion ? 30 : 18);
   };
 
   appendTitle("پوښتنه");
   appendParagraph(question, true);
+  appendQuestionGreenLine();
 
   appendTitle("الجواب");
 
@@ -417,15 +449,17 @@ const BOTTOM_PADDING = 50;
       appendParagraph(paragraph, false);
     });
 
+  appendAnswerEndLine();
+
   Array.from(pages.children).forEach((page) => {
-  const text = page.textContent?.replace(/\s+/g, "").trim();
+    const text = page.textContent?.replace(/\s+/g, "").trim();
 
-  if (!text) {
-    page.remove();
-  }
-});
+    if (!text) {
+      page.remove();
+    }
+  });
 
-await waitForPdfRender();
+  await waitForPdfRender();
 
   try {
     await (html2pdf() as any)
@@ -463,7 +497,7 @@ await waitForPdfRender();
     host.remove();
   }
 };
- 
+  
   return (
     <>
       <div>
