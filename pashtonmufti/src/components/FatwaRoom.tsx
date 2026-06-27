@@ -244,8 +244,8 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
 
   // دا اصلي خوندي حاشیې دي. که بغل لا نږدې ښکاري، SIDE_PADDING زیات کړئ.
 const TOP_PADDING = 50;
-const SIDE_PADDING_RIGHT = 70;
-const SIDE_PADDING_LEFT = 70;
+const SIDE_PADDING_RIGHT = 40;
+const SIDE_PADDING_LEFT = 40;
 const BOTTOM_PADDING = 50;
 
   const createPage = () => {
