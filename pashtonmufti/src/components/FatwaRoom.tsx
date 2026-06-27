@@ -174,7 +174,7 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-      const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
   const bodyFont =
     getComputedStyle(document.documentElement)
       .getPropertyValue("--site-font")
@@ -197,7 +197,7 @@ export default function FatwaRoom() {
       (p) => `
         <p style="
           margin:0 0 14px 0;
-          line-height:2.15;
+          line-height:2.2;
           text-align:justify;
           page-break-inside:avoid;
           break-inside:avoid;
@@ -214,74 +214,61 @@ export default function FatwaRoom() {
   <div
     dir="rtl"
     style="
-      width:190mm;
+      width:100%;
+      box-sizing:border-box;
+      padding:12mm;
       font-family:${bodyFont};
       color:#111;
       font-size:17px;
-      line-height:2.15;
+      line-height:2.2;
       background:#fff;
-      box-sizing:border-box;
-      padding:6mm;
     "
   >
 
-    <div
-      style="
-        page-break-inside:avoid;
-        break-inside:avoid;
-        margin-bottom:18px;
-      "
-    >
-      <h2
+    <!-- پوښتنه -->
+    <div style="margin-bottom:20px; page-break-inside:avoid;">
+      <div
         style="
           font-family:${headingFont};
           color:${themeColor};
-          margin:0 0 10px;
           font-size:22px;
+          font-weight:bold;
+          line-height:1.8;
+          padding:8px 10px;
           border-bottom:2px solid ${themeColor};
-          padding-bottom:6px;
+          margin-bottom:12px;
+          display:block;
+          min-height:18mm;
         "
       >
         پوښتنه
-      </h2>
+      </div>
 
-      <div
-        style="
-          font-size:18px;
-          line-height:2.1;
-          white-space:pre-wrap;
-        "
-      >
+      <div style="font-size:18px; line-height:2.2; white-space:pre-wrap;">
         ${questionText}
       </div>
     </div>
 
-    <div
-      style="
-        page-break-inside:auto;
-      "
-    >
-      <h2
+    <!-- جواب -->
+    <div style="page-break-inside:auto;">
+      <div
         style="
           font-family:${headingFont};
           color:${themeColor};
-          margin:24px 0 14px;
           font-size:22px;
+          font-weight:bold;
+          line-height:1.8;
+          padding:8px 10px;
           border-bottom:2px solid ${themeColor};
-          padding-bottom:6px;
-          page-break-after:avoid;
+          margin:25px 0 12px;
+          display:block;
+          min-height:18mm;
         "
       >
         الجواب
-      </h2>
+      </div>
 
-      <div
-        style="
-          font-size:18px;
-          line-height:2.15;
-          white-space:normal;
-        "
-      >
+      <div style="font-size:18px; line-height:2.2;">
         ${answerHtml}
       </div>
     </div>
@@ -289,9 +276,20 @@ export default function FatwaRoom() {
   </div>
   `;
 
+  // DOM element (clean + safe)
+  const element = document.createElement("div");
+  element.innerHTML = htmlContent;
+
+  element.style.position = "fixed";
+  element.style.left = "-99999px";
+  element.style.top = "0";
+  element.style.background = "#fff";
+
+  document.body.appendChild(element);
+
   html2pdf()
     .set({
-      margin: [10, 10, 10, 10],
+      margin: [15, 15, 15, 15],
       filename: "Pashton-Mufti-Fatwa.pdf",
 
       image: {
@@ -300,11 +298,12 @@ export default function FatwaRoom() {
       },
 
       html2canvas: {
-        scale: 3,
+        scale: 3, // ⭐ مهم: د پښتو ښکلا لپاره
         useCORS: true,
         letterRendering: true,
         scrollX: 0,
         scrollY: 0,
+        windowWidth: 1200,
       },
 
       jsPDF: {
@@ -315,13 +314,19 @@ export default function FatwaRoom() {
 
       pagebreak: {
         mode: ["css", "legacy"],
-        avoid: ["p", "h2", "div"],
+        avoid: ["h1", "h2", "h3", "div", "p"],
       },
     })
-    .from(htmlContent)
-    .save();
+    .from(element)
+    .save()
+    .then(() => {
+      document.body.removeChild(element);
+    })
+    .catch(() => {
+      document.body.removeChild(element);
+    });
 };
-
+  
   return (
     <>
       <div>
