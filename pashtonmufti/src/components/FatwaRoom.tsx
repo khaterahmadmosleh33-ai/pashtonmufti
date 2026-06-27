@@ -243,10 +243,10 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
   const A4_HEIGHT = 1123;
 
   // دا اصلي خوندي حاشیې دي. که بغل لا نږدې ښکاري، SIDE_PADDING زیات کړئ.
-const TOP_PADDING = 100;
-const SIDE_PADDING_RIGHT = 150;
-const SIDE_PADDING_LEFT = 150;
-const BOTTOM_PADDING = 100;
+const TOP_PADDING = 50;
+const SIDE_PADDING_RIGHT = 70;
+const SIDE_PADDING_LEFT = 70;
+const BOTTOM_PADDING = 50;
 
   const createPage = () => {
     const page = document.createElement("div");
@@ -403,7 +403,7 @@ const BOTTOM_PADDING = 100;
 
     // دا یوازي د مکمل پاراګراف وروسته لږ فاصله ورکوي.
     // د پاڼې په منځ کي د پاراګراف ماتېدو پر وخت غټ پرېکون نه جوړوي.
-    appendSpacer(isQuestion ? 26 : 10);
+    appendSpacer(isQuestion ? 30 : 18);
   };
 
   appendTitle("پوښتنه");
