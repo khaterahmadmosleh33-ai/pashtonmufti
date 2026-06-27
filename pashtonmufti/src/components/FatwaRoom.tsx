@@ -210,13 +210,15 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     )
     .join("");
 
-  // اصلاح: د mm پرځای px، او د متن پرځای ریښتنی DOM عنصر
+  // اصلاح: منفي position بالکل لرې شو. اوس عادي (static) layout دننه يو
+  // صفر-اوږدوالي wrapper کي پرته کيږي — نه fixed، نه منفي z-index.
+  const wrapper = document.createElement("div");
+  wrapper.style.height = "0";
+  wrapper.style.overflow = "hidden";
+  wrapper.style.position = "relative";
+
   const element = document.createElement("div");
   element.setAttribute("dir", "rtl");
-  element.style.position = "fixed";
-  element.style.top = "0";
-  element.style.left = "0";
-  element.style.zIndex = "-9999";
   element.style.width = "720px";
   element.style.direction = "rtl";
   element.style.fontFamily = bodyFont;
@@ -303,7 +305,8 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     </div>
   `;
 
-  document.body.appendChild(element);
+  wrapper.appendChild(element);
+  document.body.appendChild(wrapper);
 
   document.fonts.ready.then(() => {
     setTimeout(() => {
@@ -339,10 +342,10 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
         .from(element)
         .save()
         .then(() => {
-          document.body.removeChild(element);
+          document.body.removeChild(wrapper);
         })
         .catch((err: any) => {
-          document.body.removeChild(element);
+          document.body.removeChild(wrapper);
           alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
         });
     }, 150);
