@@ -210,35 +210,28 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     )
     .join("");
 
-  // ==================== د حاشیو حساب ====================
-  const PX_PER_MM = 96 / 25.4;
-  const PAGE_W_MM = 210;
-  const MARGIN_TB_MM = 20;
-  const MARGIN_LR_MM = 15;
+  // د حاشیو لپاره د پیڅلې حساب: 15mm = 57px، 20mm = 76px
+  // خو ځکه چې scale: 2 دوه برابروي، موږ هم padding دوه برابروو
+  const PAGE_WIDTH_PX = 794;
+  const MARGIN_TB_PX = 152;  // 76 × 2 = 152px (20mm)
+  const MARGIN_LR_PX = 114;  // 57 × 2 = 114px (15mm)
 
-  // د متن ساحه عرض = 210 - 15 - 15 = 180mm
-  const CONTENT_W_PX = Math.round((PAGE_W_MM - MARGIN_LR_MM * 2) * PX_PER_MM); // 680px
-  // =====================================================
+  const wrapper = document.createElement("div");
+  wrapper.style.height = "0";
+  wrapper.style.overflow = "hidden";
+  wrapper.style.position = "relative";
 
-  // Element: د سکرین څخه بهر خو د DOM کې بشپړ
   const element = document.createElement("div");
   element.setAttribute("dir", "rtl");
-  
-  // ډېر مهم: عرض د متن ساحه ده (نه بشپړه پاڼه)
-  element.style.width = CONTENT_W_PX + "px";
+  element.style.width = PAGE_WIDTH_PX + "px";
   element.style.boxSizing = "border-box";
-  element.style.padding = "0"; // حاشیې اوس html2pdf اداره کوي
+  element.style.padding = `${MARGIN_TB_PX}px ${MARGIN_LR_PX}px`;
   element.style.direction = "rtl";
   element.style.fontFamily = bodyFont;
   element.style.color = "#111";
   element.style.fontSize = "17px";
   element.style.lineHeight = "2.15";
   element.style.background = "#fff";
-  
-  // د سکرین څخه بهر خو د رسمولو لپاره موجود
-  element.style.position = "absolute";
-  element.style.left = "-9999px";
-  element.style.top = "0";
 
   element.innerHTML = `
     <div
@@ -277,8 +270,17 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
       </div>
     </div>
 
-    <div style="page-break-inside:auto;">
-      <div style="page-break-inside:avoid; break-inside:avoid;">
+    <div
+      style="
+        page-break-inside:auto;
+      "
+    >
+      <div
+        style="
+          page-break-inside:avoid;
+          break-inside:avoid;
+        "
+      >
         <h2
           style="
             font-family:${headingFont};
@@ -296,22 +298,26 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
         </h2>
       </div>
 
-      <div style="font-size:18px; line-height:2.15; white-space:normal;">
+      <div
+        style="
+          font-size:18px;
+          line-height:2.15;
+          white-space:normal;
+        "
+      >
         ${answerHtml}
       </div>
     </div>
   `;
 
-  document.body.appendChild(element);
+  wrapper.appendChild(element);
+  document.body.appendChild(wrapper);
 
   document.fonts.ready.then(() => {
     setTimeout(() => {
       html2pdf()
         .set({
-          // ==================== حاشیې — دا ډېر مهم دي ====================
-          margin: [MARGIN_TB_MM, MARGIN_LR_MM, MARGIN_TB_MM, MARGIN_LR_MM],
-          // =============================================================
-
+          margin: 0, // حاشیې اوس د HTML padding سره جوړیږي
           filename: "Pashton-Mufti-Fatwa.pdf",
 
           image: {
@@ -323,11 +329,10 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
             scale: 2,
             useCORS: true,
             letterRendering: true,
-            // ډېر مهم: دغه څلور لاینونه له منځه یوسئ!
-            // width: 794,        <== له منځه یوسئ
-            // windowWidth: 794,  <== له منځه یوسئ
-            // scrollX: 0,        <== له منځه یوسئ
-            // scrollY: 0,        <== له منځه یوسئ
+            scrollX: 0,
+            scrollY: 0,
+            width: PAGE_WIDTH_PX,
+            windowWidth: PAGE_WIDTH_PX,
           },
 
           jsPDF: {
@@ -344,13 +349,13 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
         .from(element)
         .save()
         .then(() => {
-          document.body.removeChild(element);
+          document.body.removeChild(wrapper);
         })
         .catch((err: any) => {
-          document.body.removeChild(element);
+          document.body.removeChild(wrapper);
           alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
         });
-    }, 500);
+    }, 150);
   });
 };
   
