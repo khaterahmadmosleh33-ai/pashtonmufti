@@ -260,8 +260,6 @@ const BOTTOM_PADDING = 50;
     page.style.color = "#111111";
     page.style.direction = "rtl";
     page.style.fontFamily = bodyFont;
-    page.style.pageBreakAfter = "always";
-    page.style.breakAfter = "page";
     page.style.overflow = "hidden";
 
     const content = document.createElement("div");
@@ -419,13 +417,15 @@ const BOTTOM_PADDING = 50;
       appendParagraph(paragraph, false);
     });
 
-  const allPages = Array.from(pages.children) as HTMLElement[];
-  if (allPages.length > 0) {
-    allPages[allPages.length - 1].style.pageBreakAfter = "auto";
-    allPages[allPages.length - 1].style.breakAfter = "auto";
-  }
+  Array.from(pages.children).forEach((page) => {
+  const text = page.textContent?.replace(/\s+/g, "").trim();
 
-  await waitForPdfRender();
+  if (!text) {
+    page.remove();
+  }
+});
+
+await waitForPdfRender();
 
   try {
     await (html2pdf() as any)
@@ -455,11 +455,6 @@ const BOTTOM_PADDING = 50;
           format: [A4_WIDTH, A4_HEIGHT],
           orientation: "portrait",
           hotfixes: ["px_scaling"],
-        },
-
-        pagebreak: {
-          mode: ["css", "legacy"],
-          after: ".pdf-page",
         },
       })
       .from(pages)
