@@ -174,17 +174,6 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-    const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
-    const bodyFont =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--site-font")
-        .trim() || '"Cairo", sans-serif';
-
-    const headingFont =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--heading-font")
-        .trim() || bodyFont;
-
   const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     const bodyFont =
       getComputedStyle(document.documentElement)
