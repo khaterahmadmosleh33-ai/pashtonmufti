@@ -175,132 +175,155 @@ export default function FatwaRoom() {
   };
 
   const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
-    const bodyFont =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--site-font")
-        .trim() || '"Cairo", sans-serif';
+  const bodyFont =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--site-font")
+      .trim() || '"Cairo", sans-serif';
 
-    const headingFont =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--heading-font")
-        .trim() || bodyFont;
+  const headingFont =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--heading-font")
+      .trim() || bodyFont;
 
-    const themeColor =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--theme-main")
-        .trim() || "#0f3d2e";
+  const themeColor =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--theme-main")
+      .trim() || "#0f3d2e";
 
-    const answerHtml = (fatwa.answer || "")
-      .split("\n")
-      .filter((p) => p.trim() !== "")
-      .map(
-        (p) => `
-          <p style="
-            margin:0 0 14px 0;
-            line-height:2.2;
-            text-align:justify;
-            page-break-inside:auto;
-            orphans:3;
-            widows:3;
-          ">
-            ${p}
-          </p>
-        `
-      )
-      .join("");
+  const answerHtml = (fatwa.answer || "")
+    .split("\n")
+    .filter((p) => p.trim() !== "")
+    .map(
+      (p) => `
+        <p style="
+          margin:0 0 14px 0;
+          line-height:2.15;
+          text-align:justify;
+          page-break-inside:avoid;
+          break-inside:avoid;
+          orphans:3;
+          widows:3;
+        ">
+          ${p}
+        </p>
+      `
+    )
+    .join("");
 
-    const htmlContent = `
+  const htmlContent = `
+  <div
+    dir="rtl"
+    style="
+      width:170mm; /* پراخوالی 170mm ته راټيټ سو تر څو حاشيې ته خالي ځای پاته سي */
+      margin:0 auto;
+      font-family:${bodyFont};
+      color:#111;
+      font-size:17px;
+      line-height:2.15;
+      background:#fff;
+      box-sizing:border-box;
+      padding:0; /* پډينګ صفر سو، ځکه حاشيه لاندي سيسټم کي ورکوو */
+    "
+  >
+
     <div
-      dir="rtl"
       style="
-        width:170mm;
-        margin:0 auto;
-        box-sizing:border-box;
-        font-family:${bodyFont};
-        color:#111;
-        font-size:17px;
-        line-height:2.2;
-        background:#fff;
+        page-break-inside:avoid;
+        break-inside:avoid;
+        margin-bottom:18px;
       "
     >
-
-      <div style="margin-bottom:20px; page-break-inside:avoid;">
-        <div
-          style="
-            font-family:${headingFont};
-            color:${themeColor};
-            font-size:22px;
-            font-weight:bold;
-            line-height:1.8;
-            padding:8px 10px;
-            border-bottom:2px solid ${themeColor};
-            margin-bottom:12px;
-            display:block;
-          "
-        >
-          پوښتنه
-        </div>
-
-        <div style="font-size:18px; line-height:2.2; white-space:pre-wrap;">
-          ${questionText}
-        </div>
+      <div
+        style="
+          font-family:${headingFont};
+          color:${themeColor};
+          margin:0 0 10px;
+          font-size:22px;
+          font-weight:bold; /* د h2 پر ځای div کارول سو تر څو نيم پرې نه سي */
+          border-bottom:2px solid ${themeColor};
+          padding-bottom:6px;
+        "
+      >
+        پوښتنه
       </div>
 
-      <div style="page-break-inside:auto;">
-        <div
-          style="
-            font-family:${headingFont};
-            color:${themeColor};
-            font-size:22px;
-            font-weight:bold;
-            line-height:1.8;
-            padding:8px 10px;
-            border-bottom:2px solid ${themeColor};
-            margin:25px 0 12px;
-            display:block;
-            page-break-after:avoid;
-          "
-        >
-          الجواب
-        </div>
-
-        <div style="font-size:18px; line-height:2.2;">
-          ${answerHtml}
-        </div>
+      <div
+        style="
+          font-size:18px;
+          line-height:2.1;
+          white-space:pre-wrap;
+        "
+      >
+        ${questionText}
       </div>
-
     </div>
-    `;
 
-    // دلته مو د DOM جنجال ړنګ کړ او نېغ په نېغه سټاک خوندي طريقه کاروو
-    html2pdf()
-      .set({
-        margin: [18, 18, 18, 18],
-        filename: "Pashton-Mufti-Fatwa.pdf",
-        image: {
-          type: "jpeg",
-          quality: 1,
-        },
-        html2canvas: {
-          scale: 2.5,
-          useCORS: true,
-          letterRendering: true,
-          scrollY: 0,
-          scrollX: 0,
-          windowWidth: 900,
-        },
-        jsPDF: {
-          unit: "mm",
-          format: "a4",
-          orientation: "portrait",
-        },
-        pagebreak: {
-          mode: ["css", "legacy"],
-        },
-      })
-      .from(htmlContent)
-      .save();
-  };
+    <div
+      style="
+        page-break-inside:auto;
+      "
+    >
+      <div
+        style="
+          font-family:${headingFont};
+          color:${themeColor};
+          margin:24px 0 14px;
+          font-size:22px;
+          font-weight:bold; /* د h2 پر ځای div کارول سو تر څو نيم پرې نه سي */
+          border-bottom:2px solid ${themeColor};
+          padding-bottom:6px;
+          page-break-after:avoid;
+        "
+      >
+        الجواب
+      </div>
+
+      <div
+        style="
+          font-size:18px;
+          line-height:2.15;
+          white-space:normal;
+        "
+      >
+        ${answerHtml}
+      </div>
+    </div>
+
+  </div>
+  `;
+
+  html2pdf()
+    .set({
+      margin: [20, 20, 20, 20], /* شل شل ملي متره پراخه حاشيه ورکړل سوه */
+      filename: "Pashton-Mufti-Fatwa.pdf",
+
+      image: {
+        type: "jpeg",
+        quality: 1,
+      },
+
+      html2canvas: {
+        scale: 3,
+        useCORS: true,
+        letterRendering: true,
+        scrollX: 0,
+        scrollY: 0,
+      },
+
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      },
+
+      pagebreak: {
+        mode: ["css", "legacy"],
+        avoid: ["p"], /* د h2 او div څخه ډډه وسوه چي سپينه پاڼه رانه وړي */
+      },
+    })
+    .from(htmlContent)
+    .save();
+};
   
   return (
     <>
