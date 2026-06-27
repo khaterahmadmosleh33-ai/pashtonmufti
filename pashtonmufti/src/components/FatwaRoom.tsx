@@ -175,40 +175,152 @@ export default function FatwaRoom() {
   };
 
       const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
-    const currentFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font") || "Cairo";
-    
-    // دلته مو د متن د غوڅېدو د مخنيوي لپاره 'page-break-inside: avoid' ور اضافه کړ
-    const htmlContent = `
-      <div dir="rtl" style="font-family: ${currentFont}; font-size: 14px; color: #111; line-height: 1.6; padding: 10px;">
-        <div style="margin-bottom: 20px; page-break-inside: avoid;">
-          <h3 style="font-size: 16px; font-weight: bold; border-bottom: 2px solid #0f3d2e; padding-bottom: 5px; color: #0f3d2e;">پوښتنه:</h3>
-          <p style="margin: 10px 0;">${questionText}</p>
-        </div>
-        <div style="margin-top: 20px;">
-          <h3 style="font-size: 16px; font-weight: bold; border-bottom: 2px solid #0f3d2e; padding-bottom: 5px; color: #0f3d2e;">ځواب:</h3>
-          <div style="margin-top: 10px;">${(fatwa.answer || "").replace(/\n/g, "<br/>")}</div>
-        </div>
-      </div>
-    `;
+  const bodyFont =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--site-font")
+      .trim() || '"Cairo", sans-serif';
 
-    html2pdf()
-      .set({
-        margin: 15,
-        filename: "Pashton-Mufti-Fatwa.pdf",
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          useCORS: true, 
-          letterRendering: true,
-          windowWidth: document.documentElement.offsetWidth 
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        // دا د ليکو د پرې کېدو د مخنيوي لپاره تر ټولو قوي لار ده
-        pagebreak: { mode: 'css', avoid: ['h3', 'p', 'div'] } 
-      })
-      .from(htmlContent)
-      .save();
-  };
+  const headingFont =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--heading-font")
+      .trim() || bodyFont;
+
+  const themeColor =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--theme-main")
+      .trim() || "#0f3d2e";
+
+  const answerHtml = (fatwa.answer || "")
+    .split("\n")
+    .filter((p) => p.trim() !== "")
+    .map(
+      (p) => `
+        <p style="
+          margin:0 0 14px 0;
+          line-height:2.15;
+          text-align:justify;
+          page-break-inside:avoid;
+          break-inside:avoid;
+          orphans:3;
+          widows:3;
+        ">
+          ${p}
+        </p>
+      `
+    )
+    .join("");
+
+  const htmlContent = `
+  <div
+    dir="rtl"
+    style="
+      width:190mm;
+      font-family:${bodyFont};
+      color:#111;
+      font-size:17px;
+      line-height:2.15;
+      background:#fff;
+      box-sizing:border-box;
+      padding:6mm;
+    "
+  >
+
+    <div
+      style="
+        page-break-inside:avoid;
+        break-inside:avoid;
+        margin-bottom:18px;
+      "
+    >
+      <h2
+        style="
+          font-family:${headingFont};
+          color:${themeColor};
+          margin:0 0 10px;
+          font-size:22px;
+          border-bottom:2px solid ${themeColor};
+          padding-bottom:6px;
+        "
+      >
+        پوښتنه
+      </h2>
+
+      <div
+        style="
+          font-size:18px;
+          line-height:2.1;
+          white-space:pre-wrap;
+        "
+      >
+        ${questionText}
+      </div>
+    </div>
+
+    <div
+      style="
+        page-break-inside:auto;
+      "
+    >
+      <h2
+        style="
+          font-family:${headingFont};
+          color:${themeColor};
+          margin:24px 0 14px;
+          font-size:22px;
+          border-bottom:2px solid ${themeColor};
+          padding-bottom:6px;
+          page-break-after:avoid;
+        "
+      >
+        الجواب
+      </h2>
+
+      <div
+        style="
+          font-size:18px;
+          line-height:2.15;
+          white-space:normal;
+        "
+      >
+        ${answerHtml}
+      </div>
+    </div>
+
+  </div>
+  `;
+
+  html2pdf()
+    .set({
+      margin: [10, 10, 10, 10],
+      filename: "Pashton-Mufti-Fatwa.pdf",
+
+      image: {
+        type: "jpeg",
+        quality: 1,
+      },
+
+      html2canvas: {
+        scale: 3,
+        useCORS: true,
+        letterRendering: true,
+        scrollX: 0,
+        scrollY: 0,
+      },
+
+      jsPDF: {
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait",
+      },
+
+      pagebreak: {
+        mode: ["css", "legacy"],
+        avoid: ["p", "h2", "div"],
+      },
+    })
+    .from(htmlContent)
+    .save();
+};
 
   return (
     <>
