@@ -174,155 +174,175 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
-  const bodyFont =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--site-font")
-      .trim() || '"Cairo", sans-serif';
+    const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+    const bodyFont =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--site-font")
+        .trim() || '"Cairo", sans-serif';
 
-  const headingFont =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--heading-font")
-      .trim() || bodyFont;
+    const headingFont =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--heading-font")
+        .trim() || bodyFont;
 
-  const themeColor =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--theme-main")
-      .trim() || "#0f3d2e";
+    const themeColor =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--theme-main")
+        .trim() || "#0f3d2e";
 
-  const answerHtml = (fatwa.answer || "")
-    .split("\n")
-    .filter((p) => p.trim() !== "")
-    .map(
-      (p) => `
-        <p style="
-          margin:0 0 14px 0;
-          line-height:2.2;
-          text-align:justify;
-          page-break-inside:auto; /* مهم: دا بايد auto وي چي اوږده ليکنه پرې سي */
-          orphans:3;
-          widows:3;
-        ">
-          ${p}
-        </p>
-      `
-    )
-    .join("");
+    const answerHtml = (fatwa.answer || "")
+      .split("\n")
+      .filter((p) => p.trim() !== "")
+      .map(
+        (p) => `
+          <p style="
+            margin:0 0 14px 0;
+            line-height:2.15;
+            text-align:justify;
+            page-break-inside:avoid;
+            break-inside:avoid;
+            orphans:3;
+            widows:3;
+          ">
+            ${p}
+          </p>
+        `
+      )
+      .join("");
 
-  const htmlContent = `
-  <div
-    dir="rtl"
-    style="
-      width:170mm; /* مهم: 100% غلطي کوي، دلته بايد دقيق پراخوالی وي */
-      box-sizing:border-box;
-      padding:0; /* حاشيه موږ په html2pdf کي ورکوو */
-      font-family:${bodyFont};
-      color:#111;
-      font-size:17px;
-      line-height:2.2;
-      background:#fff;
-    "
-  >
+    const htmlContent = `
+    <div
+      dir="rtl"
+      style="
+        width:170mm;
+        font-family:${bodyFont};
+        color:#111;
+        font-size:17px;
+        line-height:2.15;
+        background:#fff;
+        box-sizing:border-box;
+        padding:12mm;
+      "
+    >
 
-    <div style="margin-bottom:20px; page-break-inside:avoid;">
       <div
         style="
-          font-family:${headingFont};
-          color:${themeColor};
-          font-size:22px;
-          font-weight:bold;
-          line-height:1.8;
-          padding:8px 10px;
-          border-bottom:2px solid ${themeColor};
-          margin-bottom:12px;
-          display:block;
+          page-break-inside:avoid;
+          break-inside:avoid;
+          margin-bottom:18px;
         "
       >
-        پوښتنه
+        <div
+          style="
+            font-family:${headingFont};
+            color:${themeColor};
+            font-size:22px;
+            font-weight:bold;
+            line-height:1.8;
+            padding-top:6px;
+            padding-bottom:8px;
+            border-bottom:2px solid ${themeColor};
+            margin-bottom:15px;
+            page-break-after:avoid;
+          "
+        >
+          پوښتنه
+        </div>
+
+        <div
+          style="
+            font-size:18px;
+            line-height:2.1;
+            white-space:pre-wrap;
+          "
+        >
+          ${questionText}
+        </div>
       </div>
 
-      <div style="font-size:18px; line-height:2.2; white-space:pre-wrap;">
-        ${questionText}
-      </div>
-    </div>
-
-    <div style="page-break-inside:auto;">
       <div
         style="
-          font-family:${headingFont};
-          color:${themeColor};
-          font-size:22px;
-          font-weight:bold;
-          line-height:1.8;
-          padding:8px 10px;
-          border-bottom:2px solid ${themeColor};
-          margin:25px 0 12px;
-          display:block;
-          page-break-after:avoid; /* عنوان بايد له ځواب څخه جلا نه سي */
+          page-break-inside:auto;
         "
       >
-        الجواب
+        <div
+          style="
+            font-family:${headingFont};
+            color:${themeColor};
+            font-size:22px;
+            font-weight:bold;
+            line-height:1.8;
+            padding-top:6px;
+            padding-bottom:8px;
+            border-bottom:2px solid ${themeColor};
+            margin:24px 0 15px;
+            page-break-after:avoid;
+          "
+        >
+          الجواب
+        </div>
+
+        <div
+          style="
+            font-size:18px;
+            line-height:2.15;
+            white-space:normal;
+          "
+        >
+          ${answerHtml}
+        </div>
       </div>
 
-      <div style="font-size:18px; line-height:2.2;">
-        ${answerHtml}
-      </div>
     </div>
+    `;
 
-  </div>
-  `;
+    // د مشاور د سرو زرو تخنيک: د واقعي DOM Element جوړول
+    const element = document.createElement("div");
+    element.innerHTML = htmlContent;
+    element.style.position = "fixed";
+    element.style.left = "-100000px";
+    element.style.top = "0";
+    element.style.background = "#fff"; // تر څو شاليد يې سپين وي
+    
+    // په پاڼه کي يې په پټه توګه نښلوو تر څو براوزر يې دقيق محاسبه کړي
+    document.body.appendChild(element);
 
-  // DOM element (clean + safe)
-  const element = document.createElement("div");
-  element.innerHTML = htmlContent;
+    html2pdf()
+      .set({
+        margin: [18, 18, 18, 18],
+        filename: "Pashton-Mufti-Fatwa.pdf",
 
-  // مسلکي پټول چي html2canvas يې په سمه توګه ولولي
-  element.style.position = "absolute";
-  element.style.top = "-99999px"; // کښته/پورته پټول تر left خوندي دي
-  element.style.left = "0";
-  element.style.background = "#fff";
+        image: {
+          type: "jpeg",
+          quality: 1,
+        },
 
-  document.body.appendChild(element);
+        html2canvas: {
+          scale: 2.5,
+          useCORS: true,
+          letterRendering: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: 900,
+        },
 
-  html2pdf()
-    .set({
-      margin: [18, 18, 18, 18], // ښکلې او منظمه حاشيه
-      filename: "Pashton-Mufti-Fatwa.pdf",
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait",
+        },
 
-      image: {
-        type: "jpeg",
-        quality: 1,
-      },
-
-      html2canvas: {
-        scale: 2.5, // د پښتو فونټ د ښکلا لپاره
-        useCORS: true,
-        letterRendering: true,
-        scrollY: 0,
-        windowWidth: document.documentElement.offsetWidth, // د اصلي سکرين پراخوالی
-      },
-
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "portrait",
-      },
-
-      pagebreak: {
-        mode: ["css", "legacy"],
-        // ⛔ خبرداری: دلته مي هغه د "div" او "p" افراطي بنديز ليري کړ
-      },
-    })
-    .from(element)
-    .save()
-    .then(() => {
-      document.body.removeChild(element);
-    })
-    .catch((err) => {
-      console.error("PDF Error:", err);
-      document.body.removeChild(element);
-    });
-};   
+        pagebreak: {
+          mode: ["css", "legacy"],
+        },
+      })
+      .from(element) // دلته مو د String پر ځای واقعي DOM ورکړ
+      .save()
+      .then(() => {
+        // کله چي کار خلاص سي، دا پټ بکس بېرته ړنګوو چي پاڼه درنه نه سي
+        document.body.removeChild(element);
+      });
+  };
   
   return (
     <>
