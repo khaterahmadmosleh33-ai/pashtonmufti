@@ -342,7 +342,7 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
   } finally {
     pdfHost.remove();
   }
-};
+}
  
   return (
     <>
