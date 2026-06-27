@@ -174,14 +174,17 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  const escapePdfHtml = (value: string) => {
-  return value
+const escapePdfText = (value: string) => {
+  return String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 };
+
+const waitForPdfRender = () =>
+  new Promise((resolve) => setTimeout(resolve, 180));
 
 const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
   const bodyFont =
@@ -199,119 +202,236 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
       .getPropertyValue("--theme-main")
       .trim() || "#0f3d2e";
 
-  const safeQuestion = escapePdfHtml(questionText || "");
-  const safeAnswer = escapePdfHtml(fatwa.answer || "");
+  const question = escapePdfText(questionText || "");
+  const answer = escapePdfText(fatwa.answer || "");
 
-  const answerHtml = safeAnswer
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .map(
-      (p) => `
-        <p class="pdf-paragraph">
-          ${p}
-        </p>
-      `
-    )
-    .join("");
+  const host = document.createElement("div");
 
-  const pdfHost = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = "-10000px";
+  host.style.top = "0";
+  host.style.width = "794px";
+  host.style.background = "#ffffff";
+  host.style.zIndex = "-9999";
+  host.style.direction = "rtl";
 
-  pdfHost.style.position = "fixed";
-  pdfHost.style.left = "-10000px";
-  pdfHost.style.top = "0";
-  pdfHost.style.width = "178mm";
-  pdfHost.style.background = "#ffffff";
-  pdfHost.style.zIndex = "-1";
-
-  pdfHost.innerHTML = `
-    <style>
-      .fatwa-pdf-page {
-        width: 178mm;
-        box-sizing: border-box;
+  host.innerHTML = `
+    <div
+      id="fatwa-pdf-pages"
+      dir="rtl"
+      lang="ps"
+      style="
+        width: 794px;
         background: #ffffff;
-        color: #111111;
         direction: rtl;
-        text-align: right;
-        font-family: ${bodyFont};
-        font-size: 16px;
-        line-height: 2.15;
-        text-rendering: optimizeLegibility;
-      }
-
-      .pdf-section {
-        margin-bottom: 12mm;
-      }
-
-      .pdf-question {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-
-      .pdf-title {
-        margin: 0 0 8mm 0;
-        padding-bottom: 3mm;
-        border-bottom: 0.7mm solid ${themeColor};
-        color: ${themeColor};
-        font-family: ${headingFont};
-        font-size: 22px;
-        font-weight: 900;
-        line-height: 1.5;
-        page-break-after: avoid;
-        break-after: avoid;
-      }
-
-      .pdf-question-text {
         margin: 0;
-        white-space: pre-wrap;
-        font-size: 17px;
-        line-height: 2.1;
-      }
-
-      .pdf-paragraph {
-        margin: 0 0 7mm 0;
-        line-height: 2.15;
-        text-align: justify;
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        page-break-inside: auto;
-        break-inside: auto;
-        orphans: 3;
-        widows: 3;
-      }
-
-      @page {
-        size: A4 portrait;
-        margin: 18mm 16mm 18mm 16mm;
-      }
-    </style>
-
-    <article class="fatwa-pdf-page" dir="rtl" lang="ps">
-      <section class="pdf-section pdf-question">
-        <h1 class="pdf-title">پوښتنه</h1>
-        <p class="pdf-question-text">${safeQuestion}</p>
-      </section>
-
-      <section class="pdf-section">
-        <h2 class="pdf-title">الجواب</h2>
-        ${answerHtml}
-      </section>
-    </article>
+        padding: 0;
+        box-sizing: border-box;
+      "
+    ></div>
   `;
 
-  document.body.appendChild(pdfHost);
+  document.body.appendChild(host);
 
   if (document.fonts?.ready) {
     await document.fonts.ready;
   }
 
+  const pages = host.querySelector("#fatwa-pdf-pages") as HTMLDivElement;
+
+  const A4_WIDTH = 794;
+  const A4_HEIGHT = 1123;
+
+  // دا اصلي خوندي حاشیې دي. که بغل لا نږدې ښکاري، SIDE_PADDING زیات کړئ.
+  const TOP_PADDING = 88;
+  const SIDE_PADDING = 86;
+  const BOTTOM_PADDING = 96;
+
+  const createPage = () => {
+    const page = document.createElement("div");
+
+    page.style.width = `${A4_WIDTH}px`;
+    page.style.height = `${A4_HEIGHT}px`;
+    page.style.boxSizing = "border-box";
+    page.style.padding = `${TOP_PADDING}px ${SIDE_PADDING}px ${BOTTOM_PADDING}px ${SIDE_PADDING}px`;
+    page.style.margin = "0";
+    page.style.background = "#ffffff";
+    page.style.color = "#111111";
+    page.style.direction = "rtl";
+    page.style.fontFamily = bodyFont;
+    page.style.pageBreakAfter = "always";
+    page.style.breakAfter = "page";
+    page.style.overflow = "hidden";
+
+    const content = document.createElement("div");
+
+    content.style.width = "100%";
+    content.style.height = "100%";
+    content.style.boxSizing = "border-box";
+    content.style.margin = "0";
+    content.style.padding = "0";
+    content.style.overflow = "hidden";
+    content.style.direction = "rtl";
+
+    page.appendChild(content);
+    pages.appendChild(page);
+
+    return content;
+  };
+
+  let currentContent = createPage();
+
+  const isOverflowing = () => {
+    return currentContent.scrollHeight > currentContent.clientHeight + 1;
+  };
+
+  const newPage = () => {
+    currentContent = createPage();
+  };
+
+  const makeTitle = (text: string) => {
+    const title = document.createElement("h2");
+
+    title.innerHTML = text;
+    title.style.margin = "0 0 24px 0";
+    title.style.padding = "0 0 10px 0";
+    title.style.borderBottom = `3px solid ${themeColor}`;
+    title.style.color = themeColor;
+    title.style.fontFamily = headingFont;
+    title.style.fontSize = "25px";
+    title.style.fontWeight = "900";
+    title.style.lineHeight = "1.45";
+    title.style.textAlign = "right";
+    title.style.direction = "rtl";
+    title.style.pageBreakAfter = "avoid";
+    title.style.breakAfter = "avoid";
+
+    return title;
+  };
+
+  const makeParagraph = (isQuestion = false) => {
+    const p = document.createElement("p");
+
+    p.style.margin = "0";
+    p.style.padding = "0";
+    p.style.background = "transparent";
+    p.style.color = "#111111";
+    p.style.direction = "rtl";
+    p.style.unicodeBidi = "plaintext";
+    p.style.textAlign = "right";
+    p.style.fontFamily = bodyFont;
+    p.style.fontSize = isQuestion ? "18px" : "17px";
+    p.style.fontWeight = "400";
+    p.style.lineHeight = isQuestion ? "2.05" : "2.08";
+    p.style.whiteSpace = "normal";
+    p.style.wordBreak = "normal";
+    p.style.overflowWrap = "anywhere";
+    p.style.maxWidth = "100%";
+    p.style.boxSizing = "border-box";
+
+    return p;
+  };
+
+  const appendTitle = (text: string) => {
+    const title = makeTitle(text);
+    currentContent.appendChild(title);
+
+    if (isOverflowing()) {
+      title.remove();
+      newPage();
+      currentContent.appendChild(title);
+    }
+  };
+
+  const appendSpacer = (height: number) => {
+    const spacer = document.createElement("div");
+    spacer.style.height = `${height}px`;
+    spacer.style.margin = "0";
+    spacer.style.padding = "0";
+    currentContent.appendChild(spacer);
+
+    if (isOverflowing()) {
+      spacer.remove();
+    }
+  };
+
+  const appendTextSmart = (rawText: string, isQuestion = false) => {
+    const cleanText = String(rawText || "").replace(/\s+/g, " ").trim();
+
+    if (!cleanText) return;
+
+    const words = cleanText.split(" ");
+    let p = makeParagraph(isQuestion);
+    let currentText = "";
+
+    currentContent.appendChild(p);
+
+    for (const word of words) {
+      const nextText = currentText ? `${currentText} ${word}` : word;
+      p.innerHTML = nextText;
+
+      if (isOverflowing()) {
+        p.innerHTML = currentText;
+
+        // که حتی یو ټکی هم په موجوده مخ کي ځای نه نیسي، نوی مخ شروع کوو.
+        if (!currentText) {
+          p.remove();
+          newPage();
+
+          p = makeParagraph(isQuestion);
+          p.innerHTML = word;
+          currentContent.appendChild(p);
+          currentText = word;
+          continue;
+        }
+
+        newPage();
+
+        p = makeParagraph(isQuestion);
+        p.innerHTML = word;
+        currentContent.appendChild(p);
+        currentText = word;
+      } else {
+        currentText = nextText;
+      }
+    }
+  };
+
+  const appendParagraph = (paragraphText: string, isQuestion = false) => {
+    appendTextSmart(paragraphText, isQuestion);
+
+    // دا یوازي د مکمل پاراګراف وروسته لږ فاصله ورکوي.
+    // د پاڼې په منځ کي د پاراګراف ماتېدو پر وخت غټ پرېکون نه جوړوي.
+    appendSpacer(isQuestion ? 34 : 22);
+  };
+
+  appendTitle("پوښتنه");
+  appendParagraph(question, true);
+
+  appendTitle("الجواب");
+
+  answer
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .forEach((paragraph) => {
+      appendParagraph(paragraph, false);
+    });
+
+  const allPages = Array.from(pages.children) as HTMLElement[];
+  if (allPages.length > 0) {
+    allPages[allPages.length - 1].style.pageBreakAfter = "auto";
+    allPages[allPages.length - 1].style.breakAfter = "auto";
+  }
+
+  await waitForPdfRender();
+
   try {
-    await html2pdf()
+    await (html2pdf() as any)
       .set({
         filename: "Pashton-Mufti-Fatwa.pdf",
 
-        // دلته حاشیه ورکوو، نه په HTML padding کي
-        margin: [18, 16, 18, 16],
+        margin: 0,
 
         image: {
           type: "jpeg",
@@ -325,22 +445,26 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
           letterRendering: true,
           scrollX: 0,
           scrollY: 0,
+          windowWidth: A4_WIDTH,
+          width: A4_WIDTH,
         },
 
         jsPDF: {
-          unit: "mm",
-          format: "a4",
+          unit: "px",
+          format: [A4_WIDTH, A4_HEIGHT],
           orientation: "portrait",
+          hotfixes: ["px_scaling"],
         },
 
         pagebreak: {
           mode: ["css", "legacy"],
+          after: ".pdf-page",
         },
       })
-      .from(pdfHost.querySelector(".fatwa-pdf-page"))
+      .from(pages)
       .save();
   } finally {
-    pdfHost.remove();
+    host.remove();
   }
 };
  
