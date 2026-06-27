@@ -174,190 +174,116 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
-  const bodyFont =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--site-font")
-      .trim() || '"Cairo", sans-serif';
+  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+    const bodyFont =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--site-font")
+        .trim() || '"Cairo", sans-serif';
 
-  const headingFont =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--heading-font")
-      .trim() || bodyFont;
+    const headingFont =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--heading-font")
+        .trim() || bodyFont;
 
-  const themeColor =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--theme-main")
-      .trim() || "#0f3d2e";
+    const themeColor =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--theme-main")
+        .trim() || "#0f3d2e";
 
-  const answerHtml = (fatwa.answer || "")
-    .split("\n")
-    .filter((p) => p.trim() !== "")
-    .map(
-      (p) => `
-        <p style="
-          margin:0 0 14px 0;
-          line-height:2.15;
-          text-align:justify;
-          page-break-inside:avoid;
-          break-inside:avoid;
-          orphans:3;
-          widows:3;
-        ">
-          ${p}
-        </p>
-      `
-    )
-    .join("");
+    const answerHtml = (fatwa.answer || "")
+      .split("\n")
+      .filter((p) => p.trim() !== "")
+      .map(
+        (p) => `
+          <p style="
+            margin:0 0 14px 0;
+            line-height:2.2;
+            text-align:justify;
+            page-break-inside:auto;
+            orphans:3;
+            widows:3;
+          ">
+            ${p}
+          </p>
+        `
+      )
+      .join("");
 
-  // د حاشیو لپاره د پیڅلې حساب: 15mm = 57px، 20mm = 76px
-  // خو ځکه چې scale: 2 دوه برابروي، موږ هم padding دوه برابروو
-  const PAGE_WIDTH_PX = 794;
-  const MARGIN_TB_PX = 152;  // 76 × 2 = 152px (20mm)
-  const MARGIN_LR_PX = 114;  // 57 × 2 = 114px (15mm)
-
-  const wrapper = document.createElement("div");
-  wrapper.style.height = "0";
-  wrapper.style.overflow = "hidden";
-  wrapper.style.position = "relative";
-
-  const element = document.createElement("div");
-  element.setAttribute("dir", "rtl");
-  element.style.width = PAGE_WIDTH_PX + "px";
-  element.style.boxSizing = "border-box";
-  element.style.padding = `${MARGIN_TB_PX}px ${MARGIN_LR_PX}px`;
-  element.style.direction = "rtl";
-  element.style.fontFamily = bodyFont;
-  element.style.color = "#111";
-  element.style.fontSize = "17px";
-  element.style.lineHeight = "2.15";
-  element.style.background = "#fff";
-
-  element.innerHTML = `
-    <div
+    const htmlContent = `
+    <div 
       style="
-        page-break-inside:avoid;
-        break-inside:avoid;
-        margin-bottom:18px;
+        width:210mm; /* د A4 کاغذ کره او دقيقه اندازه */
+        background:#ffffff; 
+        padding:20mm; /* دا ستا هغه غوښتل سوې حاشيه ده چي هيڅکله نه خرابيږي */
+        box-sizing:border-box; 
+        direction:ltr; /* دا راز دی چي html2canvas غلطي ونه کړي */
       "
     >
-      <h2
+      <div 
+        dir="rtl" 
         style="
-          font-family:${headingFont};
-          color:${themeColor};
-          margin:0 0 10px;
-          font-size:22px;
-          border-bottom:2px solid ${themeColor};
-          padding-bottom:6px;
-          page-break-inside:avoid;
-          break-inside:avoid;
-          page-break-after:avoid;
+          font-family:${bodyFont}; 
+          font-size:17px; 
+          line-height:2.2; 
+          color:#111;
         "
       >
-        پوښتنه
-      </h2>
+        
+        <div style="page-break-inside:avoid; margin-bottom:20px;">
+          <div 
+            style="
+              font-family:${headingFont}; 
+              color:${themeColor}; 
+              font-size:22px; 
+              font-weight:bold; 
+              border-bottom:2px solid ${themeColor}; 
+              padding-bottom:8px; 
+              margin-bottom:15px;
+            "
+          >
+            پوښتنه
+          </div>
+          <div style="font-size:18px; white-space:pre-wrap;">
+            ${questionText}
+          </div>
+        </div>
 
-      <div
-        style="
-          font-size:18px;
-          line-height:2.1;
-          white-space:pre-wrap;
-          page-break-inside:avoid;
-          break-inside:avoid;
-        "
-      >
-        ${questionText}
+        <div style="page-break-inside:auto;">
+          <div 
+            style="
+              font-family:${headingFont}; 
+              color:${themeColor}; 
+              font-size:22px; 
+              font-weight:bold; 
+              border-bottom:2px solid ${themeColor}; 
+              padding-bottom:8px; 
+              margin-bottom:15px; 
+              page-break-after:avoid;
+            "
+          >
+            الجواب
+          </div>
+          <div style="font-size:18px;">
+            ${answerHtml}
+          </div>
+        </div>
+
       </div>
     </div>
+    `;
 
-    <div
-      style="
-        page-break-inside:auto;
-      "
-    >
-      <div
-        style="
-          page-break-inside:avoid;
-          break-inside:avoid;
-        "
-      >
-        <h2
-          style="
-            font-family:${headingFont};
-            color:${themeColor};
-            margin:24px 0 14px;
-            font-size:22px;
-            border-bottom:2px solid ${themeColor};
-            padding-bottom:6px;
-            page-break-inside:avoid;
-            break-inside:avoid;
-            page-break-after:avoid;
-          "
-        >
-          الجواب
-        </h2>
-      </div>
-
-      <div
-        style="
-          font-size:18px;
-          line-height:2.15;
-          white-space:normal;
-        "
-      >
-        ${answerHtml}
-      </div>
-    </div>
-  `;
-
-  wrapper.appendChild(element);
-  document.body.appendChild(wrapper);
-
-  document.fonts.ready.then(() => {
-    setTimeout(() => {
-      html2pdf()
-        .set({
-          margin: 0, // حاشیې اوس د HTML padding سره جوړیږي
-          filename: "Pashton-Mufti-Fatwa.pdf",
-
-          image: {
-            type: "jpeg",
-            quality: 1,
-          },
-
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            scrollX: 0,
-            scrollY: 0,
-            width: PAGE_WIDTH_PX,
-            windowWidth: PAGE_WIDTH_PX,
-          },
-
-          jsPDF: {
-            unit: "mm",
-            format: "a4",
-            orientation: "portrait",
-          },
-
-          pagebreak: {
-            mode: ["css", "legacy"],
-            avoid: ["p", "h2", "div"],
-          },
-        })
-        .from(element)
-        .save()
-        .then(() => {
-          document.body.removeChild(wrapper);
-        })
-        .catch((err: any) => {
-          document.body.removeChild(wrapper);
-          alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
-        });
-    }, 150);
-  });
-};
+    html2pdf()
+      .set({
+        margin: 0, /* حاشيه صفر سوه، ځکه موږ پورته په padding کي ورکړه */
+        filename: "Pashton-Mufti-Fatwa.pdf",
+        image: { type: "jpeg", quality: 1 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["css", "legacy"] }
+      })
+      .from(htmlContent)
+      .save();
+  };
   
   return (
     <>
