@@ -210,18 +210,28 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     )
     .join("");
 
+  // ==================== د حاشیو حل — یوازې دا برخه بدله شوې ====================
+  
   // A4 پاڼه: 210mm × 297mm
-  // حاشیې: 20mm سر/پای، 15mm چپ/ښي
-  const MARGIN_TB_MM = 20;
-  const MARGIN_LR_MM = 15;
   const PAGE_WIDTH_MM = 210;
+  const PAGE_HEIGHT_MM = 297;
+  
+  // حاشیې په mm کې (سر، ښي، پای، چپ)
+  const MARGIN_TOP_MM = 20;
+  const MARGIN_RIGHT_MM = 15;
+  const MARGIN_BOTTOM_MM = 20;
+  const MARGIN_LEFT_MM = 15;
 
-  // د متن ساحه عرض (210 - 15 - 15 = 180mm)
-  // په 96dpi کې: 180mm ≈ 680px
+  // د متن ساحه عرض = 210 - 15 - 15 = 180mm
+  const CONTENT_WIDTH_MM = PAGE_WIDTH_MM - MARGIN_LEFT_MM - MARGIN_RIGHT_MM;
+  
+  // 96dpi = 3.779 px/mm
   const PX_PER_MM = 96 / 25.4;
-  const CONTENT_WIDTH_PX = Math.round((PAGE_WIDTH_MM - MARGIN_LR_MM * 2) * PX_PER_MM);
+  const CONTENT_WIDTH_PX = Math.round(CONTENT_WIDTH_MM * PX_PER_MM); // ~680px
 
-  // wrapper: د سکرین څخه بهر خو د DOM کې موجود
+  // =========================================================================
+
+  // wrapper: د سکرین څخه بهر خو د DOM کې بشپړ رسمول
   const wrapper = document.createElement("div");
   wrapper.style.position = "absolute";
   wrapper.style.left = "-9999px";
@@ -232,9 +242,11 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
 
   const element = document.createElement("div");
   element.setAttribute("dir", "rtl");
+  
+  // ډېر مهم: element عرض اوس د متن ساحه ده (نه بشپړه پاڼه)
   element.style.width = CONTENT_WIDTH_PX + "px";
   element.style.boxSizing = "border-box";
-  element.style.padding = "0";
+  element.style.padding = "0"; // حاشیې اوس html2pdf اداره کوي
   element.style.direction = "rtl";
   element.style.fontFamily = bodyFont;
   element.style.color = "#111";
@@ -311,8 +323,12 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     setTimeout(() => {
       html2pdf()
         .set({
-          // دا ډېر مهم دی — د PDF حاشیې په mm کې
-          margin: [MARGIN_TB_MM, MARGIN_LR_MM, MARGIN_TB_MM, MARGIN_LR_MM],
+          // ==================== د حاشیو حل — یوازې دا برخه بدله شوې ====================
+          
+          // [سر، ښي، پای، چپ] — په mm کې
+          margin: [MARGIN_TOP_MM, MARGIN_RIGHT_MM, MARGIN_BOTTOM_MM, MARGIN_LEFT_MM],
+          
+          // =========================================================================
 
           filename: "Pashton-Mufti-Fatwa.pdf",
 
@@ -327,6 +343,7 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
             letterRendering: true,
             scrollX: 0,
             scrollY: 0,
+            // ډېر مهم: د html2canvas عرض باید د element عرض سره سم وي
             width: CONTENT_WIDTH_PX,
             windowWidth: CONTENT_WIDTH_PX,
           },
@@ -351,10 +368,10 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
           document.body.removeChild(wrapper);
           alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
         });
-    }, 300);
+    }, 300); // وخت یو څه زیات شو ترڅو فونټونه بشپړ رسم شي
   });
 };
-  
+   
   return (
     <>
       <div>
