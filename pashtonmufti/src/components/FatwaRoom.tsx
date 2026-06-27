@@ -174,7 +174,7 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
   const bodyFont =
     getComputedStyle(document.documentElement)
       .getPropertyValue("--site-font")
@@ -210,20 +210,23 @@ export default function FatwaRoom() {
     )
     .join("");
 
-  const htmlContent = `
-  <div
-    dir="rtl"
-    style="
-      width:180mm;
-      font-family:${bodyFont};
-      color:#111;
-      font-size:17px;
-      line-height:2.15;
-      background:#fff;
-      box-sizing:border-box;
-    "
-  >
+  // اصلاح: د mm پرځای px، او د متن پرځای ریښتنی DOM عنصر
+  const element = document.createElement("div");
+  element.setAttribute("dir", "rtl");
+  element.style.position = "fixed";
+  element.style.top = "0";
+  element.style.left = "0";
+  element.style.zIndex = "-9999";
+  element.style.width = "720px";
+  element.style.direction = "rtl";
+  element.style.fontFamily = bodyFont;
+  element.style.color = "#111";
+  element.style.fontSize = "17px";
+  element.style.lineHeight = "2.15";
+  element.style.background = "#fff";
+  element.style.boxSizing = "border-box";
 
+  element.innerHTML = `
     <div
       style="
         page-break-inside:avoid;
@@ -298,41 +301,52 @@ export default function FatwaRoom() {
         ${answerHtml}
       </div>
     </div>
-
-  </div>
   `;
 
-  html2pdf()
-    .set({
-      margin: [20, 15, 20, 15],
-      filename: "Pashton-Mufti-Fatwa.pdf",
+  document.body.appendChild(element);
 
-      image: {
-        type: "jpeg",
-        quality: 1,
-      },
+  document.fonts.ready.then(() => {
+    setTimeout(() => {
+      html2pdf()
+        .set({
+          margin: [20, 15, 20, 15],
+          filename: "Pashton-Mufti-Fatwa.pdf",
 
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        letterRendering: true,
-        scrollX: 0,
-        scrollY: 0,
-      },
+          image: {
+            type: "jpeg",
+            quality: 1,
+          },
 
-      jsPDF: {
-        unit: "mm",
-        format: "a4",
-        orientation: "portrait",
-      },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            scrollX: 0,
+            scrollY: 0,
+          },
 
-      pagebreak: {
-        mode: ["css", "legacy"],
-        avoid: ["p", "h2", "div"],
-      },
-    })
-    .from(htmlContent)
-    .save();
+          jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait",
+          },
+
+          pagebreak: {
+            mode: ["css", "legacy"],
+            avoid: ["p", "h2", "div"],
+          },
+        })
+        .from(element)
+        .save()
+        .then(() => {
+          document.body.removeChild(element);
+        })
+        .catch((err: any) => {
+          document.body.removeChild(element);
+          alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
+        });
+    }, 150);
+  });
 };
   
   return (
