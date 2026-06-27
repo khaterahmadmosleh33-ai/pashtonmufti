@@ -210,8 +210,12 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     )
     .join("");
 
-  // اصلاح: منفي position بالکل لرې شو. اوس عادي (static) layout دننه يو
-  // صفر-اوږدوالي wrapper کي پرته کيږي — نه fixed، نه منفي z-index.
+  // د A4 پاڼې عرض ۲۱۰mm = شاوخوا ۷۹۴px (په 96dpi کي)
+  const PAGE_WIDTH_PX = 794;
+  // ۲۰mm سر/پای ≈ 76px، ۱۵mm چپ/ښي ≈ 57px
+  const MARGIN_TB_PX = 76;
+  const MARGIN_LR_PX = 57;
+
   const wrapper = document.createElement("div");
   wrapper.style.height = "0";
   wrapper.style.overflow = "hidden";
@@ -219,14 +223,15 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
 
   const element = document.createElement("div");
   element.setAttribute("dir", "rtl");
-  element.style.width = "720px";
+  element.style.width = PAGE_WIDTH_PX + "px";
+  element.style.boxSizing = "border-box";
+  element.style.padding = `${MARGIN_TB_PX}px ${MARGIN_LR_PX}px`;
   element.style.direction = "rtl";
   element.style.fontFamily = bodyFont;
   element.style.color = "#111";
   element.style.fontSize = "17px";
   element.style.lineHeight = "2.15";
   element.style.background = "#fff";
-  element.style.boxSizing = "border-box";
 
   element.innerHTML = `
     <div
@@ -312,7 +317,7 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     setTimeout(() => {
       html2pdf()
         .set({
-          margin: [20, 15, 20, 15],
+          margin: 0,
           filename: "Pashton-Mufti-Fatwa.pdf",
 
           image: {
@@ -326,6 +331,8 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
             letterRendering: true,
             scrollX: 0,
             scrollY: 0,
+            width: PAGE_WIDTH_PX,
+            windowWidth: PAGE_WIDTH_PX,
           },
 
           jsPDF: {
