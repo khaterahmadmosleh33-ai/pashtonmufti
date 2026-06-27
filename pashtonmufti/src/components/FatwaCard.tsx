@@ -37,9 +37,12 @@ export default function FatwaCard({ fatwa, meta }: Props) {
       .join("\n");
 
     const text = `بسم الله الرحمن الرحيم
+    
 پوښتنه
 ${fatwa.question || ""}
+
 •••••°°°°•••••°°°°•••••°°°°•••••
+
 
 ${fatwa.answer || ""}
 
