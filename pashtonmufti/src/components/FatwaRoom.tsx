@@ -174,7 +174,7 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
   const bodyFont =
     getComputedStyle(document.documentElement)
       .getPropertyValue("--site-font")
@@ -199,8 +199,7 @@ export default function FatwaRoom() {
           margin:0 0 14px 0;
           line-height:2.2;
           text-align:justify;
-          page-break-inside:avoid;
-          break-inside:avoid;
+          page-break-inside:auto; /* مهم: دا بايد auto وي چي اوږده ليکنه پرې سي */
           orphans:3;
           widows:3;
         ">
@@ -214,9 +213,9 @@ export default function FatwaRoom() {
   <div
     dir="rtl"
     style="
-      width:100%;
+      width:170mm; /* مهم: 100% غلطي کوي، دلته بايد دقيق پراخوالی وي */
       box-sizing:border-box;
-      padding:12mm;
+      padding:0; /* حاشيه موږ په html2pdf کي ورکوو */
       font-family:${bodyFont};
       color:#111;
       font-size:17px;
@@ -225,7 +224,6 @@ export default function FatwaRoom() {
     "
   >
 
-    <!-- پوښتنه -->
     <div style="margin-bottom:20px; page-break-inside:avoid;">
       <div
         style="
@@ -238,7 +236,6 @@ export default function FatwaRoom() {
           border-bottom:2px solid ${themeColor};
           margin-bottom:12px;
           display:block;
-          min-height:18mm;
         "
       >
         پوښتنه
@@ -249,7 +246,6 @@ export default function FatwaRoom() {
       </div>
     </div>
 
-    <!-- جواب -->
     <div style="page-break-inside:auto;">
       <div
         style="
@@ -262,7 +258,7 @@ export default function FatwaRoom() {
           border-bottom:2px solid ${themeColor};
           margin:25px 0 12px;
           display:block;
-          min-height:18mm;
+          page-break-after:avoid; /* عنوان بايد له ځواب څخه جلا نه سي */
         "
       >
         الجواب
@@ -280,16 +276,17 @@ export default function FatwaRoom() {
   const element = document.createElement("div");
   element.innerHTML = htmlContent;
 
-  element.style.position = "fixed";
-  element.style.left = "-99999px";
-  element.style.top = "0";
+  // مسلکي پټول چي html2canvas يې په سمه توګه ولولي
+  element.style.position = "absolute";
+  element.style.top = "-99999px"; // کښته/پورته پټول تر left خوندي دي
+  element.style.left = "0";
   element.style.background = "#fff";
 
   document.body.appendChild(element);
 
   html2pdf()
     .set({
-      margin: [15, 15, 15, 15],
+      margin: [18, 18, 18, 18], // ښکلې او منظمه حاشيه
       filename: "Pashton-Mufti-Fatwa.pdf",
 
       image: {
@@ -298,12 +295,11 @@ export default function FatwaRoom() {
       },
 
       html2canvas: {
-        scale: 3, // ⭐ مهم: د پښتو ښکلا لپاره
+        scale: 2.5, // د پښتو فونټ د ښکلا لپاره
         useCORS: true,
         letterRendering: true,
-        scrollX: 0,
         scrollY: 0,
-        windowWidth: 1200,
+        windowWidth: document.documentElement.offsetWidth, // د اصلي سکرين پراخوالی
       },
 
       jsPDF: {
@@ -314,7 +310,7 @@ export default function FatwaRoom() {
 
       pagebreak: {
         mode: ["css", "legacy"],
-        avoid: ["h1", "h2", "h3", "div", "p"],
+        // ⛔ خبرداری: دلته مي هغه د "div" او "p" افراطي بنديز ليري کړ
       },
     })
     .from(element)
@@ -322,10 +318,11 @@ export default function FatwaRoom() {
     .then(() => {
       document.body.removeChild(element);
     })
-    .catch(() => {
+    .catch((err) => {
+      console.error("PDF Error:", err);
       document.body.removeChild(element);
     });
-};
+};   
   
   return (
     <>
