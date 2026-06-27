@@ -214,15 +214,13 @@ export default function FatwaRoom() {
   <div
     dir="rtl"
     style="
-      width:170mm; /* پراخوالی 170mm ته راټيټ سو تر څو حاشيې ته خالي ځای پاته سي */
-      margin:0 auto;
+      width:180mm;
       font-family:${bodyFont};
       color:#111;
       font-size:17px;
       line-height:2.15;
       background:#fff;
       box-sizing:border-box;
-      padding:0; /* پډينګ صفر سو، ځکه حاشيه لاندي سيسټم کي ورکوو */
     "
   >
 
@@ -233,25 +231,29 @@ export default function FatwaRoom() {
         margin-bottom:18px;
       "
     >
-      <div
+      <h2
         style="
           font-family:${headingFont};
           color:${themeColor};
           margin:0 0 10px;
           font-size:22px;
-          font-weight:bold; /* د h2 پر ځای div کارول سو تر څو نيم پرې نه سي */
           border-bottom:2px solid ${themeColor};
           padding-bottom:6px;
+          page-break-inside:avoid;
+          break-inside:avoid;
+          page-break-after:avoid;
         "
       >
         پوښتنه
-      </div>
+      </h2>
 
       <div
         style="
           font-size:18px;
           line-height:2.1;
           white-space:pre-wrap;
+          page-break-inside:avoid;
+          break-inside:avoid;
         "
       >
         ${questionText}
@@ -265,17 +267,25 @@ export default function FatwaRoom() {
     >
       <div
         style="
-          font-family:${headingFont};
-          color:${themeColor};
-          margin:24px 0 14px;
-          font-size:22px;
-          font-weight:bold; /* د h2 پر ځای div کارول سو تر څو نيم پرې نه سي */
-          border-bottom:2px solid ${themeColor};
-          padding-bottom:6px;
-          page-break-after:avoid;
+          page-break-inside:avoid;
+          break-inside:avoid;
         "
       >
-        الجواب
+        <h2
+          style="
+            font-family:${headingFont};
+            color:${themeColor};
+            margin:24px 0 14px;
+            font-size:22px;
+            border-bottom:2px solid ${themeColor};
+            padding-bottom:6px;
+            page-break-inside:avoid;
+            break-inside:avoid;
+            page-break-after:avoid;
+          "
+        >
+          الجواب
+        </h2>
       </div>
 
       <div
@@ -294,7 +304,7 @@ export default function FatwaRoom() {
 
   html2pdf()
     .set({
-      margin: [20, 20, 20, 20], /* شل شل ملي متره پراخه حاشيه ورکړل سوه */
+      margin: [20, 15, 20, 15],
       filename: "Pashton-Mufti-Fatwa.pdf",
 
       image: {
@@ -303,7 +313,7 @@ export default function FatwaRoom() {
       },
 
       html2canvas: {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         letterRendering: true,
         scrollX: 0,
@@ -318,7 +328,7 @@ export default function FatwaRoom() {
 
       pagebreak: {
         mode: ["css", "legacy"],
-        avoid: ["p"], /* د h2 او div څخه ډډه وسوه چي سپينه پاڼه رانه وړي */
+        avoid: ["p", "h2", "div"],
       },
     })
     .from(htmlContent)
