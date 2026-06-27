@@ -47,8 +47,7 @@ ${fatwa.question || ""}
 ${fatwa.answer || ""}
 
 والله اعلم بالصواب
-`;
-•••••°°°°•••••°°°°•••••°°°°•••••
+•••••°°°°•••••°°°°•••••°°°°•••••`;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
