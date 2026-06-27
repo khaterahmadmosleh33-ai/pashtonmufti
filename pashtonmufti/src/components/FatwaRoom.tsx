@@ -210,22 +210,31 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     )
     .join("");
 
-  // د A4 پاڼې عرض ۲۱۰mm = شاوخوا ۷۹۴px (په 96dpi کي)
-  const PAGE_WIDTH_PX = 794;
-  // ۲۰mm سر/پای ≈ 76px، ۱۵mm چپ/ښي ≈ 57px
-  const MARGIN_TB_PX = 76;
-  const MARGIN_LR_PX = 57;
+  // A4 پاڼه: 210mm × 297mm
+  // حاشیې: 20mm سر/پای، 15mm چپ/ښي
+  const MARGIN_TB_MM = 20;
+  const MARGIN_LR_MM = 15;
+  const PAGE_WIDTH_MM = 210;
 
+  // د متن ساحه عرض (210 - 15 - 15 = 180mm)
+  // په 96dpi کې: 180mm ≈ 680px
+  const PX_PER_MM = 96 / 25.4;
+  const CONTENT_WIDTH_PX = Math.round((PAGE_WIDTH_MM - MARGIN_LR_MM * 2) * PX_PER_MM);
+
+  // wrapper: د سکرین څخه بهر خو د DOM کې موجود
   const wrapper = document.createElement("div");
-  wrapper.style.height = "0";
+  wrapper.style.position = "absolute";
+  wrapper.style.left = "-9999px";
+  wrapper.style.top = "-9999px";
+  wrapper.style.width = "1px";
+  wrapper.style.height = "1px";
   wrapper.style.overflow = "hidden";
-  wrapper.style.position = "relative";
 
   const element = document.createElement("div");
   element.setAttribute("dir", "rtl");
-  element.style.width = PAGE_WIDTH_PX + "px";
+  element.style.width = CONTENT_WIDTH_PX + "px";
   element.style.boxSizing = "border-box";
-  element.style.padding = `${MARGIN_TB_PX}px ${MARGIN_LR_PX}px`;
+  element.style.padding = "0";
   element.style.direction = "rtl";
   element.style.fontFamily = bodyFont;
   element.style.color = "#111";
@@ -270,17 +279,8 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
       </div>
     </div>
 
-    <div
-      style="
-        page-break-inside:auto;
-      "
-    >
-      <div
-        style="
-          page-break-inside:avoid;
-          break-inside:avoid;
-        "
-      >
+    <div style="page-break-inside:auto;">
+      <div style="page-break-inside:avoid; break-inside:avoid;">
         <h2
           style="
             font-family:${headingFont};
@@ -298,13 +298,7 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
         </h2>
       </div>
 
-      <div
-        style="
-          font-size:18px;
-          line-height:2.15;
-          white-space:normal;
-        "
-      >
+      <div style="font-size:18px; line-height:2.15; white-space:normal;">
         ${answerHtml}
       </div>
     </div>
@@ -317,7 +311,9 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
     setTimeout(() => {
       html2pdf()
         .set({
-          margin: 0,
+          // دا ډېر مهم دی — د PDF حاشیې په mm کې
+          margin: [MARGIN_TB_MM, MARGIN_LR_MM, MARGIN_TB_MM, MARGIN_LR_MM],
+
           filename: "Pashton-Mufti-Fatwa.pdf",
 
           image: {
@@ -331,8 +327,8 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
             letterRendering: true,
             scrollX: 0,
             scrollY: 0,
-            width: PAGE_WIDTH_PX,
-            windowWidth: PAGE_WIDTH_PX,
+            width: CONTENT_WIDTH_PX,
+            windowWidth: CONTENT_WIDTH_PX,
           },
 
           jsPDF: {
@@ -355,7 +351,7 @@ const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
           document.body.removeChild(wrapper);
           alert("د PDF جوړولو کي ستونزه: " + (err?.message || "نامعلومه ستونزه"));
         });
-    }, 150);
+    }, 300);
   });
 };
   
