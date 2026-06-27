@@ -185,6 +185,17 @@ export default function FatwaRoom() {
         .getPropertyValue("--heading-font")
         .trim() || bodyFont;
 
+  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
+    const bodyFont =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--site-font")
+        .trim() || '"Cairo", sans-serif';
+
+    const headingFont =
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--heading-font")
+        .trim() || bodyFont;
+
     const themeColor =
       getComputedStyle(document.documentElement)
         .getPropertyValue("--theme-main")
@@ -197,10 +208,9 @@ export default function FatwaRoom() {
         (p) => `
           <p style="
             margin:0 0 14px 0;
-            line-height:2.15;
+            line-height:2.2;
             text-align:justify;
-            page-break-inside:avoid;
-            break-inside:avoid;
+            page-break-inside:auto;
             orphans:3;
             widows:3;
           ">
@@ -215,23 +225,17 @@ export default function FatwaRoom() {
       dir="rtl"
       style="
         width:170mm;
+        margin:0 auto;
+        box-sizing:border-box;
         font-family:${bodyFont};
         color:#111;
         font-size:17px;
-        line-height:2.15;
+        line-height:2.2;
         background:#fff;
-        box-sizing:border-box;
-        padding:12mm;
       "
     >
 
-      <div
-        style="
-          page-break-inside:avoid;
-          break-inside:avoid;
-          margin-bottom:18px;
-        "
-      >
+      <div style="margin-bottom:20px; page-break-inside:avoid;">
         <div
           style="
             font-family:${headingFont};
@@ -239,32 +243,21 @@ export default function FatwaRoom() {
             font-size:22px;
             font-weight:bold;
             line-height:1.8;
-            padding-top:6px;
-            padding-bottom:8px;
+            padding:8px 10px;
             border-bottom:2px solid ${themeColor};
-            margin-bottom:15px;
-            page-break-after:avoid;
+            margin-bottom:12px;
+            display:block;
           "
         >
           پوښتنه
         </div>
 
-        <div
-          style="
-            font-size:18px;
-            line-height:2.1;
-            white-space:pre-wrap;
-          "
-        >
+        <div style="font-size:18px; line-height:2.2; white-space:pre-wrap;">
           ${questionText}
         </div>
       </div>
 
-      <div
-        style="
-          page-break-inside:auto;
-        "
-      >
+      <div style="page-break-inside:auto;">
         <div
           style="
             font-family:${headingFont};
@@ -272,23 +265,17 @@ export default function FatwaRoom() {
             font-size:22px;
             font-weight:bold;
             line-height:1.8;
-            padding-top:6px;
-            padding-bottom:8px;
+            padding:8px 10px;
             border-bottom:2px solid ${themeColor};
-            margin:24px 0 15px;
+            margin:25px 0 12px;
+            display:block;
             page-break-after:avoid;
           "
         >
           الجواب
         </div>
 
-        <div
-          style="
-            font-size:18px;
-            line-height:2.15;
-            white-space:normal;
-          "
-        >
+        <div style="font-size:18px; line-height:2.2;">
           ${answerHtml}
         </div>
       </div>
@@ -296,52 +283,34 @@ export default function FatwaRoom() {
     </div>
     `;
 
-    // د مشاور د سرو زرو تخنيک: د واقعي DOM Element جوړول
-    const element = document.createElement("div");
-    element.innerHTML = htmlContent;
-    element.style.position = "fixed";
-    element.style.left = "-100000px";
-    element.style.top = "0";
-    element.style.background = "#fff"; // تر څو شاليد يې سپين وي
-    
-    // په پاڼه کي يې په پټه توګه نښلوو تر څو براوزر يې دقيق محاسبه کړي
-    document.body.appendChild(element);
-
+    // دلته مو د DOM جنجال ړنګ کړ او نېغ په نېغه سټاک خوندي طريقه کاروو
     html2pdf()
       .set({
         margin: [18, 18, 18, 18],
         filename: "Pashton-Mufti-Fatwa.pdf",
-
         image: {
           type: "jpeg",
           quality: 1,
         },
-
         html2canvas: {
           scale: 2.5,
           useCORS: true,
           letterRendering: true,
-          scrollX: 0,
           scrollY: 0,
+          scrollX: 0,
           windowWidth: 900,
         },
-
         jsPDF: {
           unit: "mm",
           format: "a4",
           orientation: "portrait",
         },
-
         pagebreak: {
           mode: ["css", "legacy"],
         },
       })
-      .from(element) // دلته مو د String پر ځای واقعي DOM ورکړ
-      .save()
-      .then(() => {
-        // کله چي کار خلاص سي، دا پټ بکس بېرته ړنګوو چي پاڼه درنه نه سي
-        document.body.removeChild(element);
-      });
+      .from(htmlContent)
+      .save();
   };
   
   return (
