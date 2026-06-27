@@ -28,14 +28,37 @@ export default function FatwaCard({ fatwa, meta }: Props) {
     }
   }, [fatwa.answer]);
 
-  const copyAnswer = async () => {
+    const copyAnswer = async () => {
     const citation = displaySources
       .map(
         (s, i) =>
-          `[${i + 1}] ${s.metadata.bookName} — ${s.metadata.author}، جلد ${s.metadata.volume}، مخ ${s.metadata.page}`
+          `${i + 1}. ${s.metadata.bookName} | ${s.metadata.author} | جلد: ${s.metadata.volume || "-"} | مخ: ${s.metadata.page || "-"}`
       )
       .join("\n");
-    const text = `${fatwa.question}\n\n${fatwa.answer}\n\n${"=".repeat(40)}\nمراجع:\n${citation}`;
+
+    const text = `بسم الله الرحمن الرحيم
+
+━━━━━━━━━━━━━━━━━━━━
+پوښتنه
+━━━━━━━━━━━━━━━━━━━━
+
+${fatwa.question || ""}
+
+━━━━━━━━━━━━━━━━━━━━
+الجواب
+━━━━━━━━━━━━━━━━━━━━
+
+${fatwa.answer || ""}
+
+━━━━━━━━━━━━━━━━━━━━
+مراجع او حوالې
+━━━━━━━━━━━━━━━━━━━━
+
+${citation || "حوالې نسته"}
+
+والله اعلم بالصواب
+`;
+
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
