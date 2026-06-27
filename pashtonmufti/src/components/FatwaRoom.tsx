@@ -338,11 +338,11 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
         },
       })
       .from(pdfHost.querySelector(".fatwa-pdf-page"))
-      .save();
+      .save()
   } finally {
     pdfHost.remove();
   }
-}
+};
  
   return (
     <>
