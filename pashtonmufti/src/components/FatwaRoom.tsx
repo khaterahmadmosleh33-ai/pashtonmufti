@@ -174,117 +174,176 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-  const handlePrintPDF = (fatwa: Fatwa, questionText: string) => {
-    const bodyFont =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--site-font")
-        .trim() || '"Cairo", sans-serif';
+  const escapePdfHtml = (value: string) => {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
 
-    const headingFont =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--heading-font")
-        .trim() || bodyFont;
+const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
+  const bodyFont =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--site-font")
+      .trim() || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
 
-    const themeColor =
-      getComputedStyle(document.documentElement)
-        .getPropertyValue("--theme-main")
-        .trim() || "#0f3d2e";
+  const headingFont =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--heading-font")
+      .trim() || bodyFont;
 
-    const answerHtml = (fatwa.answer || "")
-      .split("\n")
-      .filter((p) => p.trim() !== "")
-      .map(
-        (p) => `
-          <p style="
-            margin:0 0 14px 0;
-            line-height:2.2;
-            text-align:justify;
-            page-break-inside:auto;
-            orphans:3;
-            widows:3;
-          ">
-            ${p}
-          </p>
-        `
-      )
-      .join("");
+  const themeColor =
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--theme-main")
+      .trim() || "#0f3d2e";
 
-    const htmlContent = `
-    <div 
-      style="
-        width:210mm; /* د A4 کاغذ کره او دقيقه اندازه */
-        background:#ffffff; 
-        padding:20mm; /* دا ستا هغه غوښتل سوې حاشيه ده چي هيڅکله نه خرابيږي */
-        box-sizing:border-box; 
-        direction:ltr; /* دا راز دی چي html2canvas غلطي ونه کړي */
-      "
-    >
-      <div 
-        dir="rtl" 
-        style="
-          font-family:${bodyFont}; 
-          font-size:17px; 
-          line-height:2.2; 
-          color:#111;
-        "
-      >
-        
-        <div style="page-break-inside:avoid; margin-bottom:20px;">
-          <div 
-            style="
-              font-family:${headingFont}; 
-              color:${themeColor}; 
-              font-size:22px; 
-              font-weight:bold; 
-              border-bottom:2px solid ${themeColor}; 
-              padding-bottom:8px; 
-              margin-bottom:15px;
-            "
-          >
-            پوښتنه
-          </div>
-          <div style="font-size:18px; white-space:pre-wrap;">
-            ${questionText}
-          </div>
-        </div>
+  const safeQuestion = escapePdfHtml(questionText || "");
+  const safeAnswer = escapePdfHtml(fatwa.answer || "");
 
-        <div style="page-break-inside:auto;">
-          <div 
-            style="
-              font-family:${headingFont}; 
-              color:${themeColor}; 
-              font-size:22px; 
-              font-weight:bold; 
-              border-bottom:2px solid ${themeColor}; 
-              padding-bottom:8px; 
-              margin-bottom:15px; 
-              page-break-after:avoid;
-            "
-          >
-            الجواب
-          </div>
-          <div style="font-size:18px;">
-            ${answerHtml}
-          </div>
-        </div>
+  const answerHtml = safeAnswer
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(
+      (p) => `
+        <p class="pdf-paragraph">
+          ${p}
+        </p>
+      `
+    )
+    .join("");
 
-      </div>
-    </div>
-    `;
+  const pdfHost = document.createElement("div");
 
-    html2pdf()
+  pdfHost.style.position = "fixed";
+  pdfHost.style.left = "-10000px";
+  pdfHost.style.top = "0";
+  pdfHost.style.width = "178mm";
+  pdfHost.style.background = "#ffffff";
+  pdfHost.style.zIndex = "-1";
+
+  pdfHost.innerHTML = `
+    <style>
+      .fatwa-pdf-page {
+        width: 178mm;
+        box-sizing: border-box;
+        background: #ffffff;
+        color: #111111;
+        direction: rtl;
+        text-align: right;
+        font-family: ${bodyFont};
+        font-size: 16px;
+        line-height: 2.15;
+        text-rendering: optimizeLegibility;
+      }
+
+      .pdf-section {
+        margin-bottom: 12mm;
+      }
+
+      .pdf-question {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .pdf-title {
+        margin: 0 0 8mm 0;
+        padding-bottom: 3mm;
+        border-bottom: 0.7mm solid ${themeColor};
+        color: ${themeColor};
+        font-family: ${headingFont};
+        font-size: 22px;
+        font-weight: 900;
+        line-height: 1.5;
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      .pdf-question-text {
+        margin: 0;
+        white-space: pre-wrap;
+        font-size: 17px;
+        line-height: 2.1;
+      }
+
+      .pdf-paragraph {
+        margin: 0 0 7mm 0;
+        line-height: 2.15;
+        text-align: justify;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        page-break-inside: auto;
+        break-inside: auto;
+        orphans: 3;
+        widows: 3;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 18mm 16mm 18mm 16mm;
+      }
+    </style>
+
+    <article class="fatwa-pdf-page" dir="rtl" lang="ps">
+      <section class="pdf-section pdf-question">
+        <h1 class="pdf-title">پوښتنه</h1>
+        <p class="pdf-question-text">${safeQuestion}</p>
+      </section>
+
+      <section class="pdf-section">
+        <h2 class="pdf-title">الجواب</h2>
+        ${answerHtml}
+      </section>
+    </article>
+  `;
+
+  document.body.appendChild(pdfHost);
+
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+
+  try {
+    await html2pdf()
       .set({
-        margin: 0, /* حاشيه صفر سوه، ځکه موږ پورته په padding کي ورکړه */
         filename: "Pashton-Mufti-Fatwa.pdf",
-        image: { type: "jpeg", quality: 1 },
-        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] }
+
+        // دلته حاشیه ورکوو، نه په HTML padding کي
+        margin: [18, 16, 18, 16],
+
+        image: {
+          type: "jpeg",
+          quality: 0.98,
+        },
+
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#ffffff",
+          letterRendering: true,
+          scrollX: 0,
+          scrollY: 0,
+        },
+
+        jsPDF: {
+          unit: "mm",
+          format: "a4",
+          orientation: "portrait",
+        },
+
+        pagebreak: {
+          mode: ["css", "legacy"],
+        },
       })
-      .from(htmlContent)
+      .from(pdfHost.querySelector(".fatwa-pdf-page"))
       .save();
-  };
-  
+  } finally {
+    pdfHost.remove();
+  }
+};
+ 
   return (
     <>
       <div>
