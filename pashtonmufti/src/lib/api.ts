@@ -2,7 +2,7 @@
 // د بېک انډ API کلائنټ — نړيوال او متحرک پُل
 // ============================================================
 // دا کلائنټ يوازي حقيقي Express سرور ته کار کوي.
-// که `VITE_API_BASE` نه وي ټاکل سوی، اپليکيشن قصداً خطا ورکوي؛ جعلي ډيمو ډيټا نه کاروي.
+// که `VITE_API_BASE` نه وي ټاکل سوی, اپليکيشن قصداً خطا ورکوي؛ جعلي ډيمو ډيټا نه کاروي.
 // ============================================================
 
 import type { Fatwa } from "../types";
@@ -159,6 +159,26 @@ export async function fetchCategories() {
   return res.json(); // دا د الماريو لیست راباسي
 }
 
+export async function addCategory(name: string) {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/categories`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res));
+  return res.json();
+}
+
+export async function deleteBook(id: string) {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/books/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error(await readApiError(res));
+  return res.json();
+}
+
 // ============================================================
 // د اې آی د قوانينو او مغز مديريت
 // ============================================================
@@ -213,3 +233,4 @@ async function readApiError(res: Response) {
     return `API error ${res.status}`;
   }
 }
+
