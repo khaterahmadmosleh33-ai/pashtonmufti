@@ -1,6 +1,6 @@
 // ============================================================
 // POST /api/books/upload
-// د کتاب د بشپړ متن او ميټاډېټا اپلوډ.
+// د کتاب د بشپړ متن او ميټاډېټا اپلوډ د الماريو او ځانګړو اصولو سره.
 // د سرور پر خوا چنکنګ کيږي، چنکونه د DB ته ساتل کيږي، او د قطار ته اچول
 // کيږي ترڅو Worker وي يي ويکټور کړي.
 // ============================================================
@@ -18,7 +18,7 @@ const upload = multer({
 
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    const { title, author, publisher, edition, defaultVolume } = req.body || {};
+    const { title, author, publisher, edition, defaultVolume, category, customRule, folderName } = req.body || {};
     let arabicText = req.body?.text;
 
     if (req.file && req.file.buffer) {
@@ -34,12 +34,15 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       });
     }
 
-    // ۱. د چنکنګ (د سرور پر خوا، نه د کلائنټ)
+    // ۱. د چنکنګ پروسه د نويو متحرکو اصولو او الماريو سره
     const chunks = chunkArabicFiqhText(arabicText, {
       bookName: title,
       author,
       publisher,
       defaultVolume,
+      category: category || "فقه", // د المارۍ ټاکل
+      customRule: customRule || "", // ځانګړي اصول
+      folderName: folderName || null, // د څو ټوکه کتابونو فولډر
     });
 
     if (chunks.length === 0) {
@@ -54,11 +57,12 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     try {
       await client.query("BEGIN");
 
+      // په books جدول کي د کټګورۍ (category) کالم ور زيات سو
       const bookRes = await client.query(
-        `INSERT INTO books(title, author, publisher, edition, total_chunks, status)
-         VALUES ($1, $2, $3, $4, $5, 'processing')
+        `INSERT INTO books(title, author, publisher, edition, total_chunks, status, category)
+         VALUES ($1, $2, $3, $4, $5, 'processing', $6)
          RETURNING id`,
-        [title, author, publisher || null, edition || null, chunks.length]
+        [title, author, publisher || null, edition || null, chunks.length, category || "فقه"]
       );
       bookId = bookRes.rows[0].id;
 
@@ -68,8 +72,8 @@ router.post("/upload", upload.single("file"), async (req, res) => {
           `INSERT INTO chunks(
              book_id, arabic_text,
              book_name, author, publisher,
-             volume, page, kitab, fasl, masalah, hadith_number, extra
-           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+             volume, page, kitab, fasl, masalah, hadith_number, category, extra
+           ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
            ON CONFLICT (book_id, kitab, fasl, masalah, page) DO NOTHING
            RETURNING id`,
           [
@@ -84,9 +88,11 @@ router.post("/upload", upload.single("file"), async (req, res) => {
             c.fasl || null,
             c.masalah || null,
             c.hadith_number || null,
+            c.category || "فقه", // د چنک د المارۍ ساتنه
             JSON.stringify(c.extra || {}),
           ]
         );
+        
         // د قطار ته اچول
         if (ins.rows[0]?.id) {
           await client.query(
@@ -109,7 +115,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
       ok: true,
       book_id: bookId,
       total_chunks: chunks.length,
-      message: `کتاب په بريالۍ توګه اپلوډ سو. ${chunks.length} فقهي ټوټي د قطار ته ولېږل سوې.`,
+      message: `کتاب په بريالۍ توګه اپلوډ سو. ${chunks.length} علمي ټوټي د قطار ته ولېږل سوې.`,
     });
   } catch (err) {
     console.error("[books/upload] خطا:", err);
@@ -118,3 +124,4 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 export default router;
+
