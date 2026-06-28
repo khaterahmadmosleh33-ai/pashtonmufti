@@ -1,28 +1,24 @@
 // ============================================================
-// د عربي فقهي چنکر (Chunker)
+// د عربي کتابونو نړيوال چنکر (فقه، تفسير، حديث، تاريخ او سيرت)
 // ============================================================
 // اساسي اصل: هيڅکله د کلمو پر شمېر ړوند پرې کول نه کيږي.
-// د کتاب جوړښت (کتاب → باب → فصل → مبحث → مطلب → مسأله → فرع)
-// د پرې کولو بنسټ دی. هره ټوټه يوه بشپړه او نه پرې کېدونکې فقهي
-// مسأله ده ترڅو د جواب باوري کول وسي.
+// د کتاب جوړښت د فن مطابق (فقه، تفسير، سيرت) پرې کيږي.
+// نوی والی: د اډمن د ځانګړو اصولو (customRule) مطلق مراعتول!
 // ============================================================
 
-// د فقهي عناوينو لپاره د Regex نمونې.
-// د عربي د واول نښو سره (تشکيل) او پرته نه يي پېژني.
+// د ټولو اسلامي علومو لپاره د عمومي Regex نمونې (نړيوال اصول)
 const HEADING_PATTERNS = [
-  // د «کتاب الـ…» نمونه
-  { kind: "kitab",   re: /^\s*(?:[\(\[【]?\s*)?(?:كِتَابُ?|كتاب)\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
-  // د «بابُ …»
+  // لومړۍ کچه (کتاب، سورة، د تاريخ کال)
+  { kind: "kitab",   re: /^\s*(?:[\(\[【]?\s*)?(?:كِتَابُ?|كتاب|سُورَةُ?|سورة|عَامَ?|عام|سَنَةَ?|سنة)\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
+  
+  // دوهمه کچه (باب، فصل، د سيرت غزا، تفسير)
   { kind: "bab",     re: /^\s*(?:[\(\[【]?\s*)?(?:بَابُ?|باب)\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
-  // د «فصلٌ في…»
-  { kind: "fasl",    re: /^\s*(?:[\(\[【]?\s*)?(?:فَصْلٌ?|فَصْلُ?|فصل)(?:\s+(?:فِي|في))?\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
-  // د «مبحث»
+  { kind: "fasl",    re: /^\s*(?:[\(\[【]?\s*)?(?:فَصْلٌ?|فَصْلُ?|فصل|تَفْسِيرُ?|تفسير|غَزْوَةُ?|غزوة|سَرِيَّةُ?|سرية)(?:\s+(?:فِي|في))?\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
   { kind: "mabhath", re: /^\s*(?:[\(\[【]?\s*)?(?:مَبْحَثٌ?|مبحث)\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
-  // د «مطلبٌ في…»
+  
+  // درېيمه کچه (مسألة، مطلب، فرع، آية، حديث، د تاريخ ذکر)
   { kind: "matlab",  re: /^\s*(?:[\(\[【]?\s*)?(?:مَطْلَبٌ?|مطلب)(?:\s+(?:فِي|في))?\s+(.+?)\s*(?:[\)\]】])?\s*$/m },
-  // د «مسألةٌ» — تر ټولو مهمه نښه
-  { kind: "masalah", re: /^\s*(?:[\(\[【]?\s*)?(?:مَسْأَلَةٌ?|مسألة|مَسْئَلَةٌ?|مسئلة)\s*[:\-،]?\s*(.+?)?\s*(?:[\)\]】])?\s*$/m },
-  // د «فرعٌ»
+  { kind: "masalah", re: /^\s*(?:[\(\[【]?\s*)?(?:مَسْأَلَةٌ?|مسألة|مَسْئَلَةٌ?|مسئلة|آيَةٌ?|آية|ذِكْرُ?|ذكر)\s*[:\-،]?\s*(.+?)?\s*(?:[\)\]】])?\s*$/m },
   { kind: "fara",    re: /^\s*(?:[\(\[【]?\s*)?(?:فَرْعٌ?|فرع)\s*[:\-،]?\s*(.+?)?\s*(?:[\)\]】])?\s*$/m },
 ];
 
@@ -73,7 +69,7 @@ function detectPageMarker(line) {
 }
 
 /**
- * د عربي متن د فقهي جوړښت پر بنسټ په بشپړو ټوټو پرې کول.
+ * د عربي متن د فقهي جوړښت يا اډمن د ځانګړو اصولو پر بنسټ په بشپړو ټوټو پرې کول.
  *
  * @param {string} rawText - د کتاب بشپړ متن
  * @param {object} bookMeta - د کتاب اساسي ميټاډېټا
@@ -81,12 +77,26 @@ function detectPageMarker(line) {
  * @param {string} bookMeta.author
  * @param {string} [bookMeta.publisher]
  * @param {string} [bookMeta.defaultVolume]
+ * @param {string} [bookMeta.category]
+ * @param {string} [bookMeta.customRule]
+ * @param {string} [bookMeta.folderName]
  * @returns {Array<Chunk>}
  */
 export function chunkArabicFiqhText(rawText, bookMeta) {
   if (!rawText || !rawText.trim()) return [];
   if (!bookMeta?.bookName || !bookMeta?.author) {
     throw new Error("د کتاب نوم او مصنف د چنکنګ لپاره حتمي دي");
+  }
+
+  // ۱. د متحرکو اصولو (Dynamic Rules) ماشين جوړول
+  let customRegex = null;
+  if (bookMeta.customRule && bookMeta.customRule.trim()) {
+    // اډمن کولای سي څو اصول په کامه (،) جلا کړي لکه: "سورة, آية" يا "سنة, غزوة"
+    const ruleWords = bookMeta.customRule.split(/[,،]/).map(w => w.trim()).filter(Boolean);
+    if (ruleWords.length > 0) {
+      const rulePattern = ruleWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      customRegex = new RegExp(`^\\s*(?:[\\(\\[【]?\\s*)?(?:${rulePattern})\\b(?:\\s*[:\\-،]?\\s*(.+?))?\\s*(?:[\\)\\]】])?\\s*$`, 'm');
+    }
   }
 
   const lines = rawText.split(/\r?\n/);
@@ -103,6 +113,7 @@ export function chunkArabicFiqhText(rawText, bookMeta) {
     matlab: undefined,
     masalah: undefined,
     fara: undefined,
+    customHeading: undefined, // د اډمن د خاصو اصولو ساتلو لپاره
     volume: bookMeta.defaultVolume,
     page: undefined,
     hadithNumber: undefined,
@@ -127,14 +138,16 @@ export function chunkArabicFiqhText(rawText, bookMeta) {
         publisher: bookMeta.publisher,
         volume: state.volume,
         page: state.page,
+        // د ډېټابېس د خونديتوب لپاره نوي کلمات په زړو کالمونو کي ځای پر ځای کوو
         kitab: state.kitab,
-        // د «باب» او «کتاب» يو ځای: که باب وي، هغه به د kitab په کالم کي وي،
-        // او «fasl» به د فصل/مبحث وي.
-        fasl: state.fasl || state.mabhath || state.bab,
+        fasl: state.customHeading || state.fasl || state.mabhath || state.bab,
         masalah: state.masalah || state.matlab || state.fara,
         hadith_number: hadithNumber,
+        category: bookMeta.category || "فقه", // د فن يا المارۍ نوم
         extra: {
           opened_by: chunkOpenedBy,
+          custom_rule_applied: !!state.customHeading,
+          folder_name: bookMeta.folderName || null,
           bab: state.bab,
           mabhath: state.mabhath,
           matlab: state.matlab,
@@ -161,16 +174,25 @@ export function chunkArabicFiqhText(rawText, bookMeta) {
       continue;
     }
 
-    // ۲. د عنوان پېژندنه
+    // ۲. لومړی د اډمن ځانګړي اصول (Custom Rules) ګورو چي مطلق واک لري
+    if (customRegex) {
+      const customMatch = line.match(customRegex);
+      if (customMatch) {
+        flush("custom_rule");
+        buffer.push(line);
+        state.customHeading = (customMatch[1] || "ځانګړی اصل").trim();
+        continue; // کرښه د خاص قانون په واسطه پرې سوه، نو عمومي ته نه ځي
+      }
+    }
+
+    // ۳. که ځانګړی قانون نه وي، د ټولو علومو عمومي اصول ګورو
     const heading = detectHeading(line);
     if (heading) {
-      // د بشپړ مسألې / فرع په پيل کي چنک پرې کوو — ترڅو هره مسأله يوه ټوټه وي
+      // د بشپړ مسألې / فرع په پيل کي چنک پرې کوو
       if (["masalah", "fara", "matlab"].includes(heading.kind)) {
         flush(heading.kind);
-        // د عنوان متن د اوسني چنک د لومړۍ کرښي په توګه ساتو
         buffer.push(line);
-        // د جوړښتي حالت تازه کول
-        if (heading.kind === "masalah") state.masalah = heading.title || "مسألة";
+        if (heading.kind === "masalah") state.masalah = heading.title || "موضوع";
         if (heading.kind === "fara")    state.fara    = heading.title || "فرع";
         if (heading.kind === "matlab")  state.matlab  = heading.title || "مطلب";
         continue;
@@ -182,35 +204,29 @@ export function chunkArabicFiqhText(rawText, bookMeta) {
       switch (heading.kind) {
         case "kitab":
           state.kitab = heading.title;
-          state.bab = state.fasl = state.mabhath = undefined;
-          state.masalah = state.matlab = state.fara = undefined;
+          state.bab = state.fasl = state.mabhath = state.masalah = state.matlab = state.fara = state.customHeading = undefined;
           break;
         case "bab":
           state.bab = heading.title;
-          state.fasl = state.mabhath = undefined;
-          state.masalah = state.matlab = state.fara = undefined;
+          state.fasl = state.mabhath = state.masalah = state.matlab = state.fara = state.customHeading = undefined;
           break;
         case "fasl":
           state.fasl = heading.title;
-          state.mabhath = undefined;
-          state.masalah = state.matlab = state.fara = undefined;
+          state.mabhath = state.masalah = state.matlab = state.fara = state.customHeading = undefined;
           break;
         case "mabhath":
           state.mabhath = heading.title;
-          state.masalah = state.matlab = state.fara = undefined;
+          state.masalah = state.matlab = state.fara = state.customHeading = undefined;
           break;
       }
       continue;
     }
 
-    // ۳. د عادي کرښي په حال کي د بفر ته اضافه کوو
+    // ۴. عادي کرښي بفر ته اضافه کوو
     buffer.push(line);
 
-    // د خوندي پاتي کېدلو لپاره: که چيري يو چنک د معقولي اندازې (مثلاً ۳۰۰۰
-    // توري) څخه ډېر سو او هيڅ عنوان ونه راغی، نو په طبيعي وقفه (د «.» يا
-    // «؟» يا فقرې په پای) کي يي پرې کوو ترڅو ډېر اوږد ويکټورونه ونه جوړ سي.
+    // ۵. د خورا اوږدو متنونو طبيعي پرې کېدل (له ۳۰۰۰ تورو څخه زيات)
     if (buffer.join("\n").length > 3000) {
-      // ولټوه چي د بفر په پای کي يوه فقره ختمه ده که نه
       const joined = buffer.join("\n");
       const lastBreak = Math.max(joined.lastIndexOf("."), joined.lastIndexOf("؟"), joined.lastIndexOf("!"));
       if (lastBreak > 1500) {
@@ -241,5 +257,6 @@ export function chunkArabicFiqhText(rawText, bookMeta) {
  * @property {string} [fasl]
  * @property {string} [masalah]
  * @property {string} [hadith_number]
+ * @property {string} [category]
  * @property {object} [extra]
  */
