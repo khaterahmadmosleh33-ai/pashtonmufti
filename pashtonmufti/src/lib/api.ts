@@ -1,5 +1,5 @@
 // ============================================================
-// د بېک انډ API کلائنټ
+// د بېک انډ API کلائنټ — نړيوال او متحرک پُل
 // ============================================================
 // دا کلائنټ يوازي حقيقي Express سرور ته کار کوي.
 // که `VITE_API_BASE` نه وي ټاکل سوی، اپليکيشن قصداً خطا ورکوي؛ جعلي ډيمو ډيټا نه کاروي.
@@ -30,7 +30,7 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
   });
   if (!res.ok) throw new Error(await readApiError(res));
   const data = await res.json();
-  // د بېک انډ د فيلډونو نومونه snake_case دي — په camelCase بدلوو
+  
   return {
     question: data.question,
     answer: data.answer,
@@ -47,6 +47,7 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
         fasl: s.metadata.fasl,
         masalah: s.metadata.masalah,
         hadithNumber: s.metadata.hadith_number,
+        category: s.metadata.category, // د مأخذ د المارۍ (فن) پېژندنه
       },
     })),
     model: data.model,
@@ -85,9 +86,11 @@ export async function getBooks() {
     queuedChunks: b.queued_chunks,
     uploadedAt: new Date(b.uploaded_at).toLocaleDateString("ar"),
     status: b.status,
+    category: b.category || "فقه", // د کتاب المارۍ چي په اډمن پینل کي یې جلا کوي
   }));
 }
 
+// د کتاب اپلوډ کولو اصلاح سوی فنکشن د نويو فیلډونو سره
 export async function uploadBook(payload: {
   title: string;
   author: string;
@@ -95,6 +98,9 @@ export async function uploadBook(payload: {
   edition?: string;
   defaultVolume?: string;
   text: string;
+  category: string;     // المارۍ (فن)
+  customRule?: string;   // ځانګړي اصول
+  folderName?: string;   // د مجلداتو فولډر نوم
   file?: File | null;
 }) {
   requireApiBase();
@@ -106,6 +112,9 @@ export async function uploadBook(payload: {
     form.set("publisher", payload.publisher || "");
     form.set("edition", payload.edition || "");
     form.set("defaultVolume", payload.defaultVolume || "");
+    form.set("category", payload.category);
+    form.set("customRule", payload.customRule || "");
+    form.set("folderName", payload.folderName || "");
     form.set("file", payload.file);
 
     const res = await fetch(`${API_BASE}/api/books/upload`, {
@@ -140,7 +149,18 @@ export async function getFatwaHistory(limit = 20): Promise<AskResponse[]> {
 }
 
 // ============================================================
-// نوي فنکشنونه: د اې آی د قوانينو او مغز مديريت
+// د کټګوريو او الماريو (Categories) مديريت
+// ============================================================
+
+export async function fetchCategories() {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/categories`);
+  if (!res.ok) throw new Error(await readApiError(res));
+  return res.json(); // دا د الماريو لیست راباسي
+}
+
+// ============================================================
+// د اې آی د قوانينو او مغز مديريت
 // ============================================================
 
 export async function getAiRules() {
