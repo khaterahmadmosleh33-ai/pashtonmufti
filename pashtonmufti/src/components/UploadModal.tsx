@@ -1,7 +1,7 @@
 // د کتاب اپلوډ موډال — د اډمن پينل څخه پيل کيږي.
 
-import { useState } from "react";
-import { uploadBook, isLiveBackend } from "../lib/api";
+import { useState, useEffect } from "react";
+import { uploadBook, isLiveBackend, fetchCategories } from "../lib/api"; // fetchCategories به په api.ts کي جوړوو
 
 type Props = {
   open: boolean;
@@ -10,6 +10,9 @@ type Props = {
 };
 
 export default function UploadModal({ open, onClose, onUploaded }: Props) {
+  // د الماريو (فنونو) لومړنی ليسټ چي وروسته به د ډېټابېس څخه راځي
+  const [categories, setCategories] = useState<string[]>(["فقه", "حديث", "تفسير", "سيرت او تاريخ", "عقايد"]);
+  
   const [form, setForm] = useState({
     title: "",
     author: "",
@@ -17,14 +20,37 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
     edition: "",
     defaultVolume: "",
     text: "",
+    category: "فقه", // د المارۍ نوم
+    customRule: "",  // د ځانګړو اصولو ليکلو بکس
+    isMultiVolume: false, // آيا څو ټوکه دی؟
+    folderName: "",  // د مرکزي فولډر نوم
   });
+  
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
+  // د سوپابېس څخه د فنونو (الماريو) راوستل
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        if (typeof fetchCategories === 'function') {
+          const cats = await fetchCategories();
+          if (cats && cats.length > 0) {
+            setCategories(cats.map((c: any) => c.name));
+            setForm(p => ({ ...p, category: cats[0].name }));
+          }
+        }
+      } catch (e) {
+        console.error("د الماريو په راوستلو کي ستونزه", e);
+      }
+    }
+    if (open) loadCategories();
+  }, [open]);
+
   if (!open) return null;
 
-  const update = (k: keyof typeof form, v: string) =>
+  const update = (k: keyof typeof form, v: any) =>
     setForm((p) => ({ ...p, [k]: v }));
 
   const handleFile = async (file: File | null) => {
@@ -46,14 +72,28 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
       setMsg({ kind: "err", text: "د کتاب نوم، مصنف، او متن حتمي دي." });
       return;
     }
+    if (form.isMultiVolume && !form.folderName.trim()) {
+      setMsg({ kind: "err", text: "د څو ټوکه کتاب لپاره د مرکزي فولډر نوم ليکل حتمي دي." });
+      return;
+    }
+
     setBusy(true);
     try {
       const r = await uploadBook({ ...form, file: selectedFile });
-      setMsg({ kind: "ok", text: r.message || "بريالی" });
+      
+      // دلته سيسټم سکرين نه بندوي، تر څو بل کتاب پورته کړای سې
+      setMsg({ kind: "ok", text: "کتاب په برياليتوب سره قطار ته واچول سو! اوس کولای سی بل کتاب پورته کړی." });
       onUploaded();
-      setTimeout(onClose, 1500);
+      
+      // فورمه خالي کوو، خو مصنف، المارۍ او فولډر نوم ساتو تر څو د بل ټوک اپلوډ اسانه وي
+      setForm((p) => ({
+        ...p,
+        title: "", edition: "", defaultVolume: "", text: "", customRule: "",
+      }));
+      setSelectedFile(null);
+      
     } catch (e: any) {
-      setMsg({ kind: "err", text: e.message || "د اپلوډ په وخت کي ستونزه" });
+      setMsg({ kind: "err", text: e.message || "د اپلوډ په وخت کي ستونزه پيدا سوه." });
     } finally {
       setBusy(false);
     }
@@ -69,12 +109,10 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
           ✕
         </button>
         <h3 className="mb-1 text-2xl font-bold text-[#0f3d2e]">
-          د نوي فقهي کتاب اپلوډ
+          د نوي کتاب اپلوډ (کتابتون)
         </h3>
         <p className="mb-5 text-sm text-amber-900/80">
-          ټول پروسسونه (چنکنګ، د ميټاډېټا استخراج، او ويکټورول) د سرور پر خوا
-          ترسره کيږي. د Gemini د 429 ايرر د مخنيوي لپاره کار په قطار کي اچول
-          کيږي.
+          ټول پروسسونه په بېکګراونډ کي تر سره کيږي. تاسو کولای سی پرله‌پسې څو کتابونه قطار ته واچوی بېله دې چي انتظار وباسی.
         </p>
 
         {!isLiveBackend && (
@@ -88,14 +126,58 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="د کتاب نوم *" value={form.title} onChange={(v) => update("title", v)} />
           <Field label="مصنف *" value={form.author} onChange={(v) => update("author", v)} />
+          
+          {/* د الماريو (فنونو) انتخاب */}
+          <div>
+            <label className="mb-1 block text-xs font-bold text-emerald-900">المارۍ (فن) *</label>
+            <select
+              value={form.category}
+              onChange={(e) => update("category", e.target.value)}
+              className="w-full rounded-xl border border-amber-900/20 bg-white/80 px-3 py-2 text-sm focus:border-emerald-700 focus:outline-none"
+            >
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* د متحرکو اصولو بکس */}
+          <Field 
+            label="ځانګړی اصول (مثلاً: سورة, المقصد)" 
+            value={form.customRule} 
+            onChange={(v) => update("customRule", v)} 
+            placeholder="که خالي وي، عمومي اصول کارول کيږي"
+          />
+
           <Field label="مطبعه / چاپ" value={form.publisher} onChange={(v) => update("publisher", v)} />
-          <Field label="چاپ شمېره / نسخه" value={form.edition} onChange={(v) => update("edition", v)} />
           <Field
-            label="د جلد د مخکښ (default)"
+            label="د جلد شمېره"
             value={form.defaultVolume}
             onChange={(v) => update("defaultVolume", v)}
             placeholder="مثلاً ۱"
           />
+        </div>
+
+        {/* د څو ټوکه کتابونو لپاره فولډر سيسټم */}
+        <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-emerald-900/10 bg-emerald-50/50 p-3">
+          <label className="flex items-center gap-2 text-sm font-bold text-emerald-900 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.isMultiVolume}
+              onChange={(e) => update("isMultiVolume", e.target.checked)}
+              className="rounded text-emerald-800 focus:ring-emerald-800 h-4 w-4"
+            />
+            دا کتاب څو مجلدات لري؟
+          </label>
+          {form.isMultiVolume && (
+            <div className="flex-1 w-full">
+              <input
+                type="text"
+                value={form.folderName}
+                onChange={(e) => update("folderName", e.target.value)}
+                placeholder="د مرکزي فولډر نوم (مثلاً: هدايه)"
+                className="w-full rounded-lg border border-amber-900/20 bg-white px-3 py-1.5 text-sm focus:border-emerald-700 focus:outline-none"
+              />
+            </div>
+          )}
         </div>
 
         <div className="mt-4 rounded-2xl border border-amber-900/15 bg-white/50 p-4">
@@ -121,12 +203,12 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
 
         <div className="mt-3">
           <label className="mb-1 block text-xs font-bold text-emerald-900">
-            د کتاب عربي متن / preview *
+            د کتاب بشپړ عربي متن *
           </label>
           <textarea
             value={form.text}
             onChange={(e) => update("text", e.target.value)}
-            rows={8}
+            rows={5}
             dir="rtl"
             placeholder="دلته د کتاب بشپړ عربي متن کاپي کړی يا پورته سوی .txt فايل به دلته ښکاره سي…"
             className="w-full rounded-xl border border-amber-900/20 bg-white/80 p-3 font-arabic text-sm focus:border-emerald-700 focus:outline-none"
@@ -138,7 +220,7 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
 
         {msg && (
           <div
-            className={`mt-3 rounded-xl border p-3 text-sm ${
+            className={`mt-3 rounded-xl border p-3 text-sm font-bold ${
               msg.kind === "ok"
                 ? "border-green-300 bg-green-50 text-green-900"
                 : "border-red-300 bg-red-50 text-red-900"
@@ -157,14 +239,14 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
               onClick={onClose}
               className="rounded-xl border border-amber-900/20 bg-white/70 px-4 py-2 text-sm font-bold text-emerald-900 hover:bg-amber-50"
             >
-              لغوه
+              بندول
             </button>
             <button
               onClick={submit}
               disabled={busy}
               className="rounded-xl bg-gradient-to-br from-[#0f3d2e] to-[#14533f] px-5 py-2 text-sm font-bold text-amber-100 shadow-md disabled:opacity-50"
             >
-              {busy ? "د اپلوډ په حال کي…" : "اپلوډ او د قطار ته ولېږی"}
+              {busy ? "انتظار..." : "قطار ته يې واچوی"}
             </button>
           </div>
         </div>
