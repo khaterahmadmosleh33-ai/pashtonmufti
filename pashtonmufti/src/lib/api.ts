@@ -159,12 +159,12 @@ export async function fetchCategories() {
   return res.json(); // دا د الماريو لیست راباسي
 }
 
-export async function addCategory(name: string) {
+export async function addCategory(name: string, parent_id?: number | null, sort_order?: number) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/categories`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, parent_id, sort_order }),
   });
   if (!res.ok) throw new Error(await readApiError(res));
   return res.json();
