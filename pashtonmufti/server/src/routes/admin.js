@@ -47,10 +47,12 @@ router.get("/books", async (_req, res) => {
   }
 });
 
-// د ډېټابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پینل لپاره
+// د ډېټابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پينل لپاره — د هوښيار ترتيب او فرعي فولډرونو سره
 router.get("/categories", async (_req, res) => {
   try {
-    const result = await pool.query("SELECT name FROM categories ORDER BY name ASC");
+    const result = await pool.query(
+      "SELECT id, name, parent_id, sort_order FROM categories ORDER BY sort_order ASC, name ASC"
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("[admin/categories] خطا:", err);
@@ -58,16 +60,21 @@ router.get("/categories", async (_req, res) => {
   }
 });
 
-// د نوي فن (المارۍ) ثبتول په ډېټابېس کي د اډمن پینل له خوا
+// د نوي فن (اصلي المارۍ يا فرعي فولډر) ثبتول په ډېټابېس کي د اډمن پينل له خوا
 router.post("/categories", async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, parent_id, sort_order } = req.body;
     if (!name || !name.trim()) {
-      return res.status(400).json({ error: "د فن (المارۍ) نوم حتمي دئ." });
+      return res.status(400).json({ error: "د فن (المارۍ) نوم حتمي دی." });
     }
+    
+    // که parent_id يا sort_order نه وي راغلي، په اتومات ډول هغوی په نښه کوي
+    const parentId = parent_id ? parseInt(parent_id, 10) : null;
+    const sortOrder = sort_order ? parseInt(sort_order, 10) : 0;
+
     await pool.query(
-      "INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
-      [name.trim()]
+      "INSERT INTO categories (name, parent_id, sort_order) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING",
+      [name.trim(), parentId, sortOrder]
     );
     res.json({ ok: true, message: "نوی فن په برياليتوب سره المارۍ ته ور زيات سو." });
   } catch (err) {
@@ -76,7 +83,7 @@ router.post("/categories", async (req, res) => {
   }
 });
 
-// د يوې کټګورۍ یا فن ړنګول (که اړتیا پېښه سي)
+// د يوې کټګورۍ یا فن ړنګول (که اړتيا پېښه سي)
 router.delete("/categories/:name", async (req, res) => {
   try {
     const { name } = req.params;
@@ -213,3 +220,4 @@ router.delete("/rules/:id", async (req, res) => {
 });
 
 export default router;
+
