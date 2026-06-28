@@ -1,5 +1,5 @@
 -- ============================================================
--- د «پښتون مفتي» د PostgreSQL سکيما
+-- د «پښتون مفتي» د PostgreSQL سکيما — نړيوال او متحرک نسخه
 -- د pgvector پرزه فعالوي او د کتابونو، چنکونو، او قطار جدولونه جوړوي.
 -- ============================================================
 
@@ -8,6 +8,24 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 -- د عربي پوره متن لټون (Full-Text Search) لپاره
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- ============================================================
+-- جدول: categories — د کتابتون نوي فنون (المارۍ)
+-- د دې په واسطه اډمن کولای سي هر څونه المارۍ چي وغواړي ور زياتي يې کړي
+-- ============================================================
+CREATE TABLE IF NOT EXISTS categories (
+  id          BIGSERIAL PRIMARY KEY,
+  name        TEXT NOT NULL UNIQUE, -- د فن نوم لکه: فقه، حديث، تفسير، عقايد
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- د لومړنيو بنيادي فنونو (الماريو) ور اچول چي سيسټم خالي نه وي
+INSERT INTO categories (name) VALUES 
+  ('فقه'), 
+  ('حديث'), 
+  ('تفسير'), 
+  ('سيرت او تاريخ')
+ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================
 -- جدول: books — د کتابونو ميټاډېټا
@@ -22,20 +40,22 @@ CREATE TABLE IF NOT EXISTS books (
   embedded_chunks INT NOT NULL DEFAULT 0,
   status          TEXT NOT NULL DEFAULT 'queued'
                   CHECK (status IN ('queued', 'processing', 'complete', 'paused', 'failed')),
+  category        TEXT NOT NULL DEFAULT 'فقه', -- د کتاب د المارۍ پېژندنه
   uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS books_status_idx ON books(status);
+CREATE INDEX IF NOT EXISTS books_category_idx ON books(category);
 
 -- ============================================================
--- جدول: chunks — د کتاب فقهي ټوټي د غني ميټاډېټا سره
+-- جدول: chunks — د کتاب علمي ټوټي د غني ميټاډېټا او الماريو سره
 -- ============================================================
 CREATE TABLE IF NOT EXISTS chunks (
   id            BIGSERIAL PRIMARY KEY,
   book_id       BIGINT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
 
-  -- د چنک اصلي عربي متن (هره ټوټه يوه بشپړه فقهي مسأله ده)
+  -- د چنک اصلي عربي متن (هره ټوټه يوه بشپړه موضوع ده)
   arabic_text   TEXT NOT NULL,
 
   -- د Gemini text-embedding-004 څخه ۷۶۸ بُعدي ويکټور
@@ -43,29 +63,29 @@ CREATE TABLE IF NOT EXISTS chunks (
   embedding     vector(768),
 
   -- ============================================================
-  -- ۹ ګونې غني ميټاډېټا ساحې (د قوي حوالې لپاره)
+  -- ۱۰ ګونې غني ميټاډېټا ساحې (د قوي حوالې او الماريو لپاره)
   -- ============================================================
   book_name       TEXT NOT NULL,    -- ۱. د کتاب نوم
   author          TEXT NOT NULL,    -- ۲. مصنف
   publisher       TEXT,             -- ۳. مطبعه / چاپ
   volume          TEXT,             -- ۴. جلد
   page            TEXT,             -- ۵. مخ
-  kitab           TEXT,             -- ۶. کتاب / باب (لکه «کتاب الطهارة»)
-  fasl            TEXT,             -- ۷. فصل (لکه «باب التيمم»)
-  masalah         TEXT,             -- ۸. مسأله / مطلب / فرع
+  kitab           TEXT,             -- ۶. کتاب / باب (لکه «کتاب الطهارة» يا «سورة البقرة»)
+  fasl            TEXT,             -- ۷. فصل (لکه «باب التيمم» يا «تفسير الأية»)
+  masalah         TEXT,             -- ۸. مسأله / مطلب / فرع / موضوع
   hadith_number   TEXT,             -- ۹. د حديث شمېره (که شته)
+  category        TEXT NOT NULL DEFAULT 'فقه', -- ۱۰. د المارۍ نوم چي چنک پکي پروت دی
 
-  -- اضافي ميتاډېټا (JSONB د سپک پراختيا لپاره)
+  -- اضافي ميتاډېټا (JSONB د سپک پراختيا لپاره لکه د فولډر نوم او داسي نور)
   extra           JSONB DEFAULT '{}'::jsonb,
 
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-  -- ډاډ چي د يو کتاب په منځ کي بې ځايه تکرار نه وي
+  -- ډاډ چي د يو کتاب کي بې ځايه تکرار نه وي
   UNIQUE (book_id, kitab, fasl, masalah, page)
 );
 
 -- د HNSW index د cosine distance لپاره — د چټک لټون لپاره حتمي.
--- يادونه: HNSW يوازي د pgvector 0.5+ څخه شته. د کم نسخې لپاره IVFFlat وکاروی.
 CREATE INDEX IF NOT EXISTS chunks_embedding_hnsw_idx
   ON chunks USING hnsw (embedding vector_cosine_ops)
   WITH (m = 16, ef_construction = 64);
@@ -76,6 +96,7 @@ CREATE INDEX IF NOT EXISTS chunks_arabic_trgm_idx
 
 CREATE INDEX IF NOT EXISTS chunks_book_id_idx ON chunks(book_id);
 CREATE INDEX IF NOT EXISTS chunks_kitab_idx ON chunks(kitab);
+CREATE INDEX IF NOT EXISTS chunks_category_idx ON chunks(category);
 
 -- ============================================================
 -- جدول: embedding_queue — د ويکټورولو قطار
@@ -118,7 +139,6 @@ CREATE INDEX IF NOT EXISTS fatwa_log_created_idx ON fatwa_log(created_at DESC);
 -- ============================================================
 -- جدول: test_cases — د Phase 6 ازموينې Golden Dataset
 -- ============================================================
--- د «انساني عالم vs پښتون مفتي» پرتلې لپاره. هدف د ۹۰٪+ سموالی.
 CREATE TABLE IF NOT EXISTS test_cases (
   id                  BIGSERIAL PRIMARY KEY,
   topic               TEXT NOT NULL,             -- وتر، زکات، طلاق، …
@@ -131,7 +151,7 @@ CREATE TABLE IF NOT EXISTS test_cases (
 );
 
 -- ============================================================
--- جدول: test_runs — د هر «وچلوی» د پايلې ساتنه (د وخت تېرېدلو سره د ښه والي تعقيب)
+-- جدول: test_runs — د هر «وچلوی» د پايلې ساتنه
 -- ============================================================
 CREATE TABLE IF NOT EXISTS test_runs (
   id                BIGSERIAL PRIMARY KEY,
@@ -161,7 +181,7 @@ VALUES
   ('زکات',
    'د سپينو زرو نصاب څونه دی؟',
    'دوه سوه (۲۰۰) درهمه (نږدې ۶۱۲.۳۶ ګرامه).',
-   'بدائع الصنائع — کتاب الزکاة، جلد ۲، مخ ۱۷',
+   'بدائع الصنائع — کتاب الزکاة، جلد ۲، مخ ۱ارت',
    ARRAY['۲۰۰','درهم','زکات','قمري']),
   ('نکاح',
    'د نکاح صحت لپاره ولي ضروري دی؟',
