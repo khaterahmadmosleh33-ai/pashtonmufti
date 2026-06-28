@@ -97,17 +97,22 @@ async function saveEmbedding(chunkId, vector, queueId) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    
+    // ۱. په چنک کي د ويکټور اېښودل
     await client.query(
       `UPDATE chunks SET embedding = $1::vector WHERE id = $2`,
       [toVectorLiteral(vector), chunkId]
     );
+    
+    // ۲. په قطار کي د حالت بدلول پر done
     await client.query(
       `UPDATE embedding_queue
        SET status = 'done', last_error = NULL, updated_at = NOW(), locked_by = NULL
        WHERE id = $1`,
       [queueId]
     );
-    // د کتاب د embedded_chunks تازه کول
+    
+    // ۳. د کتاب د خپلي اړوندي المارۍ په پام کي نيولو سره د embedded_chunks تازه کول
     await client.query(
       `UPDATE books SET
          embedded_chunks = (SELECT COUNT(*) FROM chunks WHERE book_id = books.id AND embedding IS NOT NULL),
@@ -119,6 +124,7 @@ async function saveEmbedding(chunkId, vector, queueId) {
        WHERE id = (SELECT book_id FROM chunks WHERE id = $1)`,
       [chunkId]
     );
+    
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");
@@ -197,7 +203,6 @@ async function processOne(item) {
     }
     await saveEmbedding(item.chunk_id, vector, item.queue_id);
   } catch (err) {
-    // د 429 خطایانو لپاره ځانګړی ځنډ
     if (err?.status === 429 || /429|rate|quota/i.test(err?.message || "")) {
       console.warn("⚠️ سخت محدودیت: د ۵ ثانیو ځنډ...");
       await new Promise(r => setTimeout(r, 5000));
@@ -214,7 +219,6 @@ export async function startWorker() {
   running = true;
   console.log(`🚀 [worker:${WORKER_ID}] د ويکټورولو ماشين پيل سو (rate=${RATE_PER_SEC}/s, retries=${MAX_RETRIES})`);
 
-  // د نويو کارونو تر پيلولو مخکي، زاړه قلف سوي کارونه خلاصوو
   await recoverStuckJobs();
 
   while (running) {
@@ -224,7 +228,6 @@ export async function startWorker() {
         await new Promise((r) => setTimeout(r, POLL_MS));
         continue;
       }
-      // په موازي ډول د ټولو پروسس کول (د limiter سره)
       await Promise.all(batch.map(processOne));
     } catch (err) {
       console.error("[worker] د حلقې په منځ کي خطا:", err.message);
@@ -235,7 +238,6 @@ export async function startWorker() {
 
 export function stopWorker() { running = false; }
 
-// که چيري دا فايل په مستقيم ډول چلول کيږي:
 if (import.meta.url === `file://${process.argv[1]}`) {
   startWorker().catch((e) => {
     console.error("[worker] د پيل کولو خطا:", e);
