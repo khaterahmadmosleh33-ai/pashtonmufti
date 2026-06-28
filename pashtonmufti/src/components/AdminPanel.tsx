@@ -1,4 +1,4 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات او د اې آی مغز.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د کتابتون المارۍ.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
@@ -7,7 +7,6 @@ import {
   getBooks, 
   getQueueStats, 
   isLiveBackend,
-  // دا ۴ نوي فنکشنونه دي چي په api.ts کي به يې جوړوو
   getAiRules,
   addAiRule,
   updateAiRule,
@@ -15,10 +14,154 @@ import {
 } from "../lib/api";
 import UploadModal from "./UploadModal";
 import SingleBookWorkbench from "./SingleBookWorkbench";
+import { supabase } from "../lib/supabase"; // نوی زيات سوی د الماريو او کتابونو د ړنګولو لپاره
+
+// ==========================================
+// ستا د پي ډي اېف (PDF) د چاپولو پخوانی کوډ
+// ==========================================
+const escapePdfText = (value: string) => {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+};
+
+const waitForPdfRender = () => new Promise((resolve) => setTimeout(resolve, 180));
+
+const handlePrintPDF = async (fatwa: any, questionText: string) => {
+  const bodyFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font").trim() || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
+  const headingFont = getComputedStyle(document.documentElement).getPropertyValue("--heading-font").trim() || bodyFont;
+  const themeColor = getComputedStyle(document.documentElement).getPropertyValue("--theme-main").trim() || "#0f3d2e";
+
+  const question = escapePdfText(questionText || "");
+  const answer = escapePdfText(fatwa.answer || "");
+
+  const host = document.createElement("div");
+  host.style.position = "fixed";
+  host.style.left = "-10000px";
+  host.style.top = "0";
+  host.style.width = "794px";
+  host.style.background = "#ffffff";
+  host.style.zIndex = "-9999";
+  host.style.direction = "rtl";
+
+  host.innerHTML = `
+    <div id="fatwa-pdf-pages" dir="rtl" lang="ps" style="width: 794px; background: #ffffff; direction: rtl; margin: 0; padding: 0; box-sizing: border-box;"></div>
+  `;
+  document.body.appendChild(host);
+
+  if (document.fonts?.ready) {
+    await document.fonts.ready;
+  }
+
+  const pages = host.querySelector("#fatwa-pdf-pages") as HTMLDivElement;
+  const A4_WIDTH = 794;
+  const A4_HEIGHT = 1123;
+  const TOP_PADDING = 50;
+  const SIDE_PADDING_RIGHT = 15;
+  const SIDE_PADDING_LEFT = 15;
+  const BOTTOM_PADDING = 50;
+
+  const createPage = () => {
+    const page = document.createElement("div");
+    page.style.width = `${A4_WIDTH}px`;
+    page.style.height = `${A4_HEIGHT}px`;
+    page.style.boxSizing = "border-box";
+    page.style.padding = `${TOP_PADDING}px ${SIDE_PADDING_RIGHT}px ${BOTTOM_PADDING}px ${SIDE_PADDING_LEFT}px`;
+    page.style.margin = "0";
+    page.style.background = "#ffffff";
+    page.style.color = "#111111";
+    page.style.direction = "rtl";
+    page.style.fontFamily = bodyFont;
+    page.style.overflow = "hidden";
+
+    const content = document.createElement("div");
+    content.style.width = "100%";
+    content.style.height = "100%";
+    content.style.boxSizing = "border-box";
+    content.style.margin = "0";
+    content.style.padding = "0";
+    content.style.overflow = "hidden";
+    content.style.direction = "rtl";
+
+    page.appendChild(content);
+    pages.appendChild(page);
+    return content;
+  };
+
+  let currentContent = createPage();
+
+  const isOverflowing = () => currentContent.scrollHeight > currentContent.clientHeight + 1;
+  const newPage = () => { currentContent = createPage(); };
+
+  const makeTitle = (text: string) => {
+    const title = document.createElement("h2");
+    title.innerHTML = text;
+    title.style.margin = "0 0 24px 0";
+    title.style.padding = "0";
+    title.style.color = themeColor;
+    title.style.fontFamily = headingFont;
+    title.style.fontSize = "29px";
+    title.style.fontWeight = "900";
+    title.style.lineHeight = "1.45";
+    title.style.textAlign = "right";
+    title.style.direction = "rtl";
+    return title;
+  };
+
+  const makeParagraph = (isQuestion = false) => {
+    const p = document.createElement("p");
+    p.style.margin = "0";
+    p.style.padding = "0";
+    p.style.color = "#111111";
+    p.style.direction = "rtl";
+    p.style.textAlign = "right";
+    p.style.fontFamily = bodyFont;
+    p.style.fontSize = "22px";
+    p.style.lineHeight = isQuestion ? "2.05" : "2.08";
+    return p;
+  };
+
+  const appendTitle = (text: string) => {
+    const title = makeTitle(text);
+    currentContent.appendChild(title);
+    if (isOverflowing()) { title.remove(); newPage(); currentContent.appendChild(title); }
+  };
+
+  const appendParagraph = (paragraphText: string, isQuestion = false) => {
+    const p = makeParagraph(isQuestion);
+    p.innerHTML = paragraphText;
+    currentContent.appendChild(p);
+    if (isOverflowing()) { p.remove(); newPage(); currentContent.appendChild(p); }
+  };
+
+  appendTitle("پوښتنه");
+  appendParagraph(question, true);
+  appendTitle("الجواب");
+  answer.split(/\n+/).map(p => p.trim()).filter(Boolean).forEach(paragraph => appendParagraph(paragraph, false));
+
+  await waitForPdfRender();
+
+  try {
+    // @ts-ignore
+    await html2pdf().set({
+      filename: "Pashton-Mufti-Fatwa.pdf",
+      margin: 0,
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: A4_WIDTH, width: A4_WIDTH },
+      jsPDF: { unit: "px", format: [A4_WIDTH, A4_HEIGHT], orientation: "portrait", hotfixes: ["px_scaling"] },
+    }).from(pages).save();
+  } finally {
+    host.remove();
+  }
+};
+// ==========================================
+
 
 type Stats = Awaited<ReturnType<typeof getQueueStats>>;
 
-// د اې آی د قوانينو لپاره نوی ټايپ
 export type AiRule = {
   id: string;
   rule_text: string;
@@ -31,8 +174,8 @@ export default function AdminPanel() {
   const [books, setBooks] = useState<BookStatus[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  // دلته مو نوی "ai_rules" ليد (View) ور زيات کړ
-  const [view, setView] = useState<"workbench" | "all" | "ai_rules" | "settings">("workbench");
+  // دلته مو د "library" په نوم نوی ليد ور زيات کړی دی
+  const [view, setView] = useState<"workbench" | "all" | "library" | "ai_rules" | "settings">("workbench");
   const [error, setError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
 
@@ -52,14 +195,12 @@ export default function AdminPanel() {
 
   useEffect(() => {
     refresh();
-    // د هرو ۵ ثانيو وروسته د تازه ډيټا راپورته کول (يوازي د حقيقي بېک انډ سره)
     if (isLiveBackend) {
       const t = setInterval(refresh, 5000);
       return () => clearInterval(t);
     }
   }, []);
 
-  // د قلف سوو کارونو د خلاصولو فنکشن
   const handleUnlockJobs = async () => {
     if (!window.confirm("آيا غواړی چي ټول قلف سوي او بند پاته کارونه خلاص کړی؟")) return;
     setUnlocking(true);
@@ -84,14 +225,8 @@ export default function AdminPanel() {
     return (
       <div className="flex h-64 items-center justify-center text-emerald-800">
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" />
-        <span
-          className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700"
-          style={{ animationDelay: "0.2s" }}
-        />
-        <span
-          className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700"
-          style={{ animationDelay: "0.4s" }}
-        />
+        <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" style={{ animationDelay: "0.2s" }} />
+        <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" style={{ animationDelay: "0.4s" }} />
         <span className="mr-3 text-sm">د اډمن ډيټا راپورته کول…</span>
       </div>
     );
@@ -126,7 +261,6 @@ export default function AdminPanel() {
         onUploaded={refresh}
       />
 
-      {/* د سر عنوان */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="mb-2 text-3xl font-bold" style={{ color: "var(--theme-main)" }}>
@@ -170,7 +304,15 @@ export default function AdminPanel() {
             view === "all" ? "tab-active" : "text-emerald-900 hover:bg-amber-50"
           }`}
         >
-          📚 ټول کتابونه او قطار
+          📚 قطار او پروسس
+        </button>
+        <button
+          onClick={() => setView("library")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            view === "library" ? "tab-active bg-emerald-100 text-emerald-900" : "text-emerald-900 hover:bg-amber-50"
+          }`}
+        >
+          📚 کتابتون او المارۍ
         </button>
         <button
           onClick={() => setView("ai_rules")}
@@ -178,7 +320,7 @@ export default function AdminPanel() {
             view === "ai_rules" ? "tab-active bg-emerald-100 text-emerald-900" : "text-emerald-900 hover:bg-amber-50"
           }`}
         >
-          🧠 د اې آی مغز (قوانين)
+          🧠 د اې آی مغز
         </button>
         <button
           onClick={() => setView("settings")}
@@ -190,18 +332,124 @@ export default function AdminPanel() {
         </button>
       </div>
 
-      {view === "workbench" && (
-        <SingleBookWorkbench books={books} onOpenUpload={() => setOpen(true)} />
-      )}
-      {view === "all" && (
-        <AllBooksView stats={stats} books={books} />
-      )}
-      {view === "ai_rules" && (
-        <AiRulesView />
-      )}
-      {view === "settings" && (
-        <SettingsView />
-      )}
+      {view === "workbench" && <SingleBookWorkbench books={books} onOpenUpload={() => setOpen(true)} />}
+      {view === "all" && <AllBooksView stats={stats} books={books} />}
+      {view === "library" && <LibraryView books={books} refresh={refresh} />}
+      {view === "ai_rules" && <AiRulesView />}
+      {view === "settings" && <SettingsView />}
+    </div>
+  );
+}
+
+// ==========================================
+// د کتابتون او الماريو (Library) نوې برخه
+// ==========================================
+function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => void }) {
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategory, setNewCategory] = useState("");
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  async function fetchCategories() {
+    try {
+      const { data } = await supabase.from("categories").select("name");
+      if (data) setCategories(data.map((c: any) => c.name));
+    } catch (e) {
+      console.error("خطا", e);
+    }
+  }
+
+  const handleAddCategory = async () => {
+    if (!newCategory.trim()) return;
+    try {
+      await supabase.from("categories").insert([{ name: newCategory }]);
+      setNewCategory("");
+      fetchCategories();
+    } catch (e) {
+      alert("د المارۍ په ثبتولو کي ستونزه پېښه سوه.");
+    }
+  };
+
+  const handleDeleteBook = async (id: string) => {
+    if (!confirm("آيا واقعاً غواړی چي دا کتاب د تل لپاره ړنګ کړی؟")) return;
+    try {
+      await supabase.from("books").delete().eq("id", id);
+      refresh();
+    } catch (e) {
+      alert("د کتاب په ړنګولو کي ستونزه پېښه سوه.");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="fatwa-card rounded-2xl p-8">
+        <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--theme-main)" }}>
+          📚 د کتابتون او فنونو اداره
+        </h3>
+        
+        {/* نوی فن (المارۍ) زياتول */}
+        <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
+          <label className="mb-2 block text-sm font-bold text-emerald-900">نوی فن (المارۍ) زياتول:</label>
+          <div className="flex flex-col gap-3 md:flex-row max-w-md">
+            <input 
+              value={newCategory} 
+              onChange={(e) => setNewCategory(e.target.value)}
+              className="p-3 flex-1 rounded-xl border border-emerald-900/20 focus:outline-none focus:border-emerald-700"
+              placeholder="د نوي فن نوم (مثلاً: عقايد)"
+            />
+            <button 
+              onClick={handleAddCategory} 
+              className="bg-emerald-700 text-amber-100 px-6 py-2 rounded-xl font-bold shadow-md hover:bg-emerald-800"
+            >
+              زياتول
+            </button>
+          </div>
+        </div>
+
+        {/* د الماريو او کتابونو ننداره */}
+        <div className="space-y-8">
+          {categories.map((cat) => {
+            // دلته موږ ګورو چي کوم کتابونه دې المارۍ پوري اړه لري
+            const catBooks = books.filter((b: any) => b.category === cat);
+            
+            return (
+              <div key={cat} className="border border-amber-900/10 p-5 rounded-3xl bg-white shadow-sm">
+                <h3 className="text-xl font-bold text-emerald-900 mb-4 border-b pb-2">{cat}</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {catBooks.map(book => (
+                    <div key={book.id} className="flex flex-col p-4 bg-emerald-50/30 border border-emerald-900/5 rounded-2xl transition hover:shadow-md">
+                      <span className="font-bold text-emerald-900 text-lg mb-1">{book.title}</span>
+                      <span className="text-sm text-amber-900/80 mb-4">{book.author}</span>
+                      
+                      <div className="mt-auto flex gap-2">
+                        <button 
+                          onClick={() => handlePrintPDF({ answer: "دلته د کتاب متن راځي..." }, book.title)}
+                          className="flex-1 text-xs bg-amber-100 text-amber-900 px-3 py-2 rounded-lg font-bold hover:bg-amber-200"
+                        >
+                          چاپ (PDF)
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteBook(book.id)} 
+                          className="flex-1 text-xs bg-red-100 text-red-900 px-3 py-2 rounded-lg font-bold hover:bg-red-200"
+                        >
+                          ړنګول
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {catBooks.length === 0 && (
+                    <div className="text-sm text-gray-400 p-4">په دې المارۍ کي تر اوسه کتاب نسته...</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -705,4 +953,3 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
