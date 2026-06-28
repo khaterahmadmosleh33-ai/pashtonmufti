@@ -1,4 +1,4 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د کتابتون المارۍ.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال, د سايټ تنظيمات، د اې آی مغز او د کتابتون المارۍ.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
@@ -341,11 +341,13 @@ export default function AdminPanel() {
 }
 
 // ==========================================
-// د کتابتون او الماريو (Library) نوې برخه
+// د کټګوريو او پوړيزو الماريو (Library) نوې برخه
 // ==========================================
 function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => void }) {
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [newCategory, setNewCategory] = useState("");
+  const [parentId, setParentId] = useState<string>("");
+  const [sortOrder, setSortOrder] = useState<number>(0);
 
   useEffect(() => {
     loadCategories();
@@ -354,7 +356,7 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
   async function loadCategories() {
     try {
       const data = await fetchCategories();
-      if (data) setCategories(data.map((c: any) => c.name));
+      if (data) setCategories(data);
     } catch (e) {
       console.error("خطا", e);
     }
@@ -363,8 +365,11 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
     try {
-      await addCategory(newCategory);
+      const pId = parentId ? parseInt(parentId, 10) : null;
+      await addCategory(newCategory, pId, sortOrder);
       setNewCategory("");
+      setParentId("");
+      setSortOrder(0);
       loadCategories();
     } catch (e) {
       alert("د المارۍ په ثبتولو کي ستونزه پېښه سوه.");
@@ -385,62 +390,113 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
     <div className="space-y-6">
       <div className="fatwa-card rounded-2xl p-8">
         <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--theme-main)" }}>
-          📚 د کتابتون او فنونو اداره
+          📚 د کتابتون، فنونو او مذهبونو اداره
         </h3>
         
+        {/* نوی فن يا فرعي فولډر زياتول د ډراپ‌ډاون سره */}
         <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
-          <label className="mb-2 block text-sm font-bold text-emerald-900">نوی فن (المارۍ) زياتول:</label>
-          <div className="flex flex-col gap-3 md:flex-row max-w-md">
+          <label className="mb-2 block text-sm font-bold text-emerald-900">نوی فن (المارۍ يا فرعي فولډر) جوړول:</label>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
             <input 
               value={newCategory} 
               onChange={(e) => setNewCategory(e.target.value)}
-              className="p-3 flex-1 rounded-xl border border-emerald-900/20 focus:outline-none focus:border-emerald-700"
-              placeholder="د نوي فن نوم (مثلاً: عقايد)"
+              className="p-3 rounded-xl border border-emerald-900/20 focus:outline-none focus:border-emerald-700 bg-white"
+              placeholder="د فولډر نوم (مثلاً: فقه حنفي)"
             />
+            
+            <select
+              value={parentId}
+              onChange={(e) => setParentId(e.target.value)}
+              className="p-3 rounded-xl border border-emerald-900/20 focus:outline-none focus:border-emerald-700 bg-white text-sm"
+            >
+              <option value="">📁 اصلي کټګوري (بې پلار)</option>
+              {categories.filter(c => !c.parent_id).map(c => (
+                <option key={c.id} value={c.id}>تر دغه لاندي راسي: {c.name}</option>
+              ))}
+            </select>
+
+            <input 
+              type="number"
+              value={sortOrder} 
+              onChange={(e) => setSortOrder(parseInt(e.target.value, 10) || 0)}
+              className="p-3 rounded-xl border border-emerald-900/20 focus:outline-none focus:border-emerald-700 bg-white"
+              placeholder="د ترتيب نمبر (مثلاً: 1)"
+            />
+
             <button 
               onClick={handleAddCategory} 
-              className="bg-emerald-700 text-amber-100 px-6 py-2 rounded-xl font-bold shadow-md hover:bg-emerald-800"
+              className="bg-emerald-700 text-amber-100 px-6 py-3 rounded-xl font-bold shadow-md hover:bg-emerald-800 transition-all"
             >
-              زياتول
+              فولډر جوړول
             </button>
           </div>
         </div>
 
+        {/* د الماريو او فرعي فولډرونو ننداره په متحرک ډول */}
         <div className="space-y-8">
-          {categories.map((cat) => {
-            const catBooks = books.filter((b: any) => b.category === cat);
+          {categories.filter(c => !c.parent_id).map((mainCat) => {
+            const mainCatBooks = books.filter((b: any) => b.category === mainCat.name);
+            const subCats = categories.filter(c => c.parent_id === mainCat.id);
             
             return (
-              <div key={cat} className="border border-amber-900/10 p-5 rounded-3xl bg-white shadow-sm">
-                <h3 className="text-xl font-bold text-emerald-900 mb-4 border-b pb-2">{cat}</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {catBooks.map(book => (
-                    <div key={book.id} className="flex flex-col p-4 bg-emerald-50/30 border border-emerald-900/5 rounded-2xl transition hover:shadow-md">
-                      <span className="font-bold text-emerald-900 text-lg mb-1">{book.title}</span>
-                      <span className="text-sm text-amber-900/80 mb-4">{book.author}</span>
-                      
-                      <div className="mt-auto flex gap-2">
-                        <button 
-                          onClick={() => handlePrintPDF({ answer: "دلته د کتاب متن راځي..." }, book.title)}
-                          className="flex-1 text-xs bg-amber-100 text-amber-900 px-3 py-2 rounded-lg font-bold hover:bg-amber-200"
-                        >
-                          چاپ (PDF)
-                        </button>
-                        <button 
-                          onClick={() => handleDeleteBook(book.id)} 
-                          className="flex-1 text-xs bg-red-100 text-red-900 px-3 py-2 rounded-lg font-bold hover:bg-red-200"
-                        >
-                          ړنګول
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {catBooks.length === 0 && (
-                    <div className="text-sm text-gray-400 p-4">په دې المارۍ کي تر اوسه کتاب نسته...</div>
-                  )}
+              <div key={mainCat.id} className="border border-amber-900/10 p-6 rounded-3xl bg-white shadow-sm space-y-6">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <h3 className="text-2xl font-bold text-emerald-900">📁 {mainCat.name}</h3>
+                  <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-md font-bold">ترتيب: {mainCat.sort_order}</span>
                 </div>
+                
+                {/* د اصلي کټګورۍ خپل کتابونه */}
+                {mainCatBooks.length > 0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {mainCatBooks.map(book => (
+                      <div key={book.id} className="flex flex-col p-4 bg-emerald-50/30 border border-emerald-900/5 rounded-2xl transition hover:shadow-md">
+                        <span className="font-bold text-emerald-900 text-lg mb-1">{book.title}</span>
+                        <span className="text-sm text-amber-900/80 mb-4">{book.author}</span>
+                        <div className="mt-auto flex gap-2">
+                          <button onClick={() => handlePrintPDF({ answer: "کتاب..." }, book.title)} className="flex-1 text-xs bg-amber-100 text-amber-900 px-3 py-2 rounded-lg font-bold hover:bg-amber-200">چاپ</button>
+                          <button onClick={() => handleDeleteBook(book.id)} className="flex-1 text-xs bg-red-100 text-red-900 px-3 py-2 rounded-lg font-bold hover:bg-red-200">ړنګول</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* د دې لاندي فرعي فولډرونه (مذهبونه) */}
+                {subCats.length > 0 && (
+                  <div className="mr-6 pr-4 border-r-2 border-emerald-800/20 space-y-6">
+                    {subCats.map((subCat) => {
+                      const subCatBooks = books.filter((b: any) => b.category === subCat.name);
+                      return (
+                        <div key={subCat.id} className="bg-amber-50/20 p-4 rounded-2xl border border-amber-900/5">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-lg font-bold text-amber-900">📂 {subCat.name}</h4>
+                            <span className="text-xs text-amber-700/70">ترتيب: {subCat.sort_order}</span>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {subCatBooks.map(book => (
+                              <div key={book.id} className="flex flex-col p-4 bg-white border border-emerald-900/10 rounded-xl transition hover:shadow-sm">
+                                <span className="font-bold text-emerald-900 text-base mb-1">{book.title}</span>
+                                <span className="text-xs text-amber-900/70 mb-3">{book.author}</span>
+                                <div className="mt-auto flex gap-2">
+                                  <button onClick={() => handlePrintPDF({ answer: "کتاب..." }, book.title)} className="flex-1 text-[11px] bg-amber-100 text-amber-900 py-1.5 rounded-md font-bold hover:bg-amber-200">چاپ</button>
+                                  <button onClick={() => handleDeleteBook(book.id)} className="flex-1 text-[11px] bg-red-100 text-red-900 py-1.5 rounded-md font-bold hover:bg-red-200">ړنګول</button>
+                                </div>
+                              </div>
+                            ))}
+                            {subCatBooks.length === 0 && (
+                              <div className="text-xs text-gray-400 p-2">په دې فولډر کي کتاب نسته...</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {mainCatBooks.length === 0 && subCats.length === 0 && (
+                  <div className="text-sm text-gray-400 p-2">په دې کټګورۍ کي تر اوسه هیڅ نه شته...</div>
+                )}
               </div>
             );
           })}
@@ -942,4 +998,3 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
-
