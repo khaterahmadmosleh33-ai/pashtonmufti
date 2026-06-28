@@ -1,5 +1,5 @@
 // ============================================================
-// د اډمن پينل لپاره API لاري
+// د اډمن پينل لپاره API لاري — نړيوال او متحرک نسخه
 // ============================================================
 
 import { Router } from "express";
@@ -30,19 +30,46 @@ router.get("/queue", async (_req, res) => {
   }
 });
 
-// د ټولو کتابونو لست
+// د ټولو کتابونو لست (د المارۍ کالم ور زيات سو)
 router.get("/books", async (_req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT id, title, author, publisher,
              total_chunks, embedded_chunks,
              (total_chunks - embedded_chunks) AS queued_chunks,
-             status, uploaded_at, updated_at
+             status, uploaded_at, updated_at, category
       FROM books
       ORDER BY uploaded_at DESC
     `);
     res.json({ books: rows });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// د سوپابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پینل لپاره
+router.get("/categories", async (_req, res) => {
+  try {
+    const result = await pool.query("SELECT name FROM categories ORDER BY name ASC");
+    res.json(result.rows);
+  } catch (err) {
+    console.error("[admin/categories] خطا:", err);
+    res.status(500).json({ error: "د فنونو د راوړلو په وخت کي ستونزه پېښه سوه." });
+  }
+});
+
+// د نوي کتاب ړنګول د تل لپاره د اډمن له خوا (Cascade الوتنه)
+router.delete("/books/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    // څرنګه چي په schema کي ON DELETE CASCADE شته، د کتاب په پاکولو سره ټول اړوند چنکونه په اتومات ډول پاکيږي
+    const result = await pool.query(`DELETE FROM books WHERE id = $1`, [id]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "کتاب ونه موندل سو." });
+    }
+    res.json({ ok: true, message: "کتاب او د هغه ټول اړوند ويکټورونه په برياليتوب سره پاک سول." });
+  } catch (err) {
+    console.error("[admin/delete-book] خطا:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -98,10 +125,10 @@ router.post("/unlock-stuck-jobs", async (_req, res) => {
 
 
 // ============================================================
-// 🧠 نوي API لاري د اې آی د قوانينو (مغز) لپاره
+// 🧠 نوي API لاري د اې آی د قوانينو (مغز) لپاره — پوره خوندي دي
 // ============================================================
 
-// ۱. د ټولو قوانينو راوړل (يوازي فعال او غير فعال ټول راوړي)
+// ۱. د ټولو قوانينو راوړل
 router.get("/rules", async (_req, res) => {
   try {
     const { rows } = await pool.query(`
