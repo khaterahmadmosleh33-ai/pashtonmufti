@@ -47,7 +47,7 @@ router.get("/books", async (_req, res) => {
   }
 });
 
-// د سوپابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پینل لپاره
+// د ډېټابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پینل لپاره
 router.get("/categories", async (_req, res) => {
   try {
     const result = await pool.query("SELECT name FROM categories ORDER BY name ASC");
@@ -58,11 +58,41 @@ router.get("/categories", async (_req, res) => {
   }
 });
 
+// د نوي فن (المارۍ) ثبتول په ډېټابېس کي د اډمن پینل له خوا
+router.post("/categories", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "د فن (المارۍ) نوم حتمي دئ." });
+    }
+    await pool.query(
+      "INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING",
+      [name.trim()]
+    );
+    res.json({ ok: true, message: "نوی فن په برياليتوب سره المارۍ ته ور زيات سو." });
+  } catch (err) {
+    console.error("[admin/add-category] خطا:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// د يوې کټګورۍ یا فن ړنګول (که اړتیا پېښه سي)
+router.delete("/categories/:name", async (req, res) => {
+  try {
+    const { name } = req.params;
+    await pool.query("DELETE FROM categories WHERE name = $1", [name]);
+    res.json({ ok: true, message: "فن په کاميابۍ سره ليري سو." });
+  } catch (err) {
+    console.error("[admin/delete-category] خطا:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // د نوي کتاب ړنګول د تل لپاره د اډمن له خوا (Cascade الوتنه)
 router.delete("/books/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    // څرنګه چي په schema کي ON DELETE CASCADE شته، د کتاب په پاکولو سره ټول اړوند چنکونه په اتومات ډول پاکيږي
+    // د ON DELETE CASCADE له امله د کتاب په پاکولو سره ټول اړوند چنکونه او قطارونه په اتومات ډول پاکيږي
     const result = await pool.query(`DELETE FROM books WHERE id = $1`, [id]);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "کتاب ونه موندل سو." });
@@ -125,7 +155,7 @@ router.post("/unlock-stuck-jobs", async (_req, res) => {
 
 
 // ============================================================
-// 🧠 نوي API لاري د اې آی د قوانينو (مغز) لپاره — پوره خوندي دي
+// 🧠 API لاري د اې آی د قوانينو (مغز) لپاره — پوره خوندي دي
 // ============================================================
 
 // ۱. د ټولو قوانينو راوړل
