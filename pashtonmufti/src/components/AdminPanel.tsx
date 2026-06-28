@@ -10,11 +10,13 @@ import {
   getAiRules,
   addAiRule,
   updateAiRule,
-  deleteAiRule
+  deleteAiRule,
+  fetchCategories,
+  addCategory,
+  deleteBook
 } from "../lib/api";
 import UploadModal from "./UploadModal";
 import SingleBookWorkbench from "./SingleBookWorkbench";
-import { supabase } from "../lib/supabase"; // نوی زيات سوی د الماريو او کتابونو د ړنګولو لپاره
 
 // ==========================================
 // ستا د پي ډي اېف (PDF) د چاپولو پخوانی کوډ
@@ -159,7 +161,6 @@ const handlePrintPDF = async (fatwa: any, questionText: string) => {
 };
 // ==========================================
 
-
 type Stats = Awaited<ReturnType<typeof getQueueStats>>;
 
 export type AiRule = {
@@ -174,7 +175,6 @@ export default function AdminPanel() {
   const [books, setBooks] = useState<BookStatus[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  // دلته مو د "library" په نوم نوی ليد ور زيات کړی دی
   const [view, setView] = useState<"workbench" | "all" | "library" | "ai_rules" | "settings">("workbench");
   const [error, setError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
@@ -288,7 +288,6 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* د لېدنو tabs */}
       <div className="mb-6 inline-flex flex-wrap gap-1 rounded-2xl border border-amber-900/15 bg-white/60 p-1">
         <button
           onClick={() => setView("workbench")}
@@ -349,12 +348,12 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
   const [newCategory, setNewCategory] = useState("");
 
   useEffect(() => {
-    fetchCategories();
+    loadCategories();
   }, []);
 
-  async function fetchCategories() {
+  async function loadCategories() {
     try {
-      const { data } = await supabase.from("categories").select("name");
+      const data = await fetchCategories();
       if (data) setCategories(data.map((c: any) => c.name));
     } catch (e) {
       console.error("خطا", e);
@@ -364,9 +363,9 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
   const handleAddCategory = async () => {
     if (!newCategory.trim()) return;
     try {
-      await supabase.from("categories").insert([{ name: newCategory }]);
+      await addCategory(newCategory);
       setNewCategory("");
-      fetchCategories();
+      loadCategories();
     } catch (e) {
       alert("د المارۍ په ثبتولو کي ستونزه پېښه سوه.");
     }
@@ -375,7 +374,7 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
   const handleDeleteBook = async (id: string) => {
     if (!confirm("آيا واقعاً غواړی چي دا کتاب د تل لپاره ړنګ کړی؟")) return;
     try {
-      await supabase.from("books").delete().eq("id", id);
+      await deleteBook(id);
       refresh();
     } catch (e) {
       alert("د کتاب په ړنګولو کي ستونزه پېښه سوه.");
@@ -389,7 +388,6 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
           📚 د کتابتون او فنونو اداره
         </h3>
         
-        {/* نوی فن (المارۍ) زياتول */}
         <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
           <label className="mb-2 block text-sm font-bold text-emerald-900">نوی فن (المارۍ) زياتول:</label>
           <div className="flex flex-col gap-3 md:flex-row max-w-md">
@@ -408,10 +406,8 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
           </div>
         </div>
 
-        {/* د الماريو او کتابونو ننداره */}
         <div className="space-y-8">
           {categories.map((cat) => {
-            // دلته موږ ګورو چي کوم کتابونه دې المارۍ پوري اړه لري
             const catBooks = books.filter((b: any) => b.category === cat);
             
             return (
@@ -522,7 +518,6 @@ function AiRulesView() {
           دلته هغه اصول وليکی چي جيمينای يې بايد د فتوا پر مهال د الهي قانون په څېر په کلکه مراعات کړي. دا قوانين نېغ په نېغه د سوپابيس څخه اې آی ته ورځي.
         </p>
         
-        {/* نوی قانون ليکل */}
         <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
           <label className="mb-2 block text-sm font-bold text-emerald-900">
             نوی قانون ور زيات کړی:
@@ -546,7 +541,6 @@ function AiRulesView() {
           </div>
         </div>
 
-        {/* د موجوده قوانينو لست */}
         <div>
           <h4 className="mb-4 text-lg font-bold text-emerald-900">موجوده فعال او غير فعال قوانين:</h4>
           
@@ -707,7 +701,6 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
   return (
     <div className="space-y-10">
       
-      {/* د حقيقي کار د اصولو پټۍ (له مخ‌پاڼي څخه راوړل سوې) */}
       <div className="grid grid-cols-3 gap-4">
         {[
           { v: "۱", l: "اول يو کتاب" },
@@ -728,7 +721,6 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
         ))}
       </div>
 
-      {/* د عمومي شمېرو ګريډ */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <StatCard
           label="ټولي ټوټي"
@@ -753,7 +745,6 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
         />
       </div>
 
-      {/* د Worker د حالت کارت */}
       <div className="grid gap-4 md:grid-cols-3">
         <InfoCard
           title="د Worker حالت"
@@ -778,7 +769,6 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
         />
       </div>
 
-      {/* د حقيقي RAG جريان (له مخ‌پاڼي څخه راوړل سوی) */}
       <div className="rounded-3xl border border-amber-900/15 bg-white/40 p-6">
         <div className="mb-4 flex items-center justify-between text-sm text-amber-900/80">
           <span className="text-lg font-bold text-[#0f3d2e]">د حقيقي RAG جريان</span>
@@ -807,7 +797,6 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
         </div>
       </div>
 
-      {/* د کتابونو لست */}
       <div className="fatwa-card rounded-2xl">
         <div className="flex items-center justify-between border-b border-amber-900/15 px-6 py-4">
           <h3 className="text-lg font-bold text-emerald-900">
