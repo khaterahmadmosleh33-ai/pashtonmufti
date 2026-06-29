@@ -1,4 +1,4 @@
-// د «پښتون مفتي» اصلي اپليکيشن.
+// د «پښتون مفتي» اصلي اپليکيشن (نسخهٔ عیار سوې او خوندي).
 
 import { useEffect, useState } from "react";
 import Header from "./components/Header";
@@ -16,7 +16,7 @@ const TABS: Tab[] = ["fatwa", "roadmap", "admin", "evaluation", "architecture"];
 export default function App() {
   const [tab, setTab] = useState<Tab>("fatwa");
 
-  // کله چي اپليکېشن چالان سي، خوندي سوي رنګونه او فونټونه تطبيقوي
+  // کله چي اپليکېشن چالان سي، خوندي سوي رنګونه، فونټونه او امنيت تطبيقوي
   useEffect(() => {
     const savedFont = localStorage.getItem("mufti_font");
     const savedHeadingFont = localStorage.getItem("mufti_heading_font");
@@ -26,7 +26,6 @@ export default function App() {
     if (savedFont) {
       document.documentElement.style.setProperty("--site-font", savedFont);
     }
-    // د عنوانونو فونټ تطبيق
     if (savedHeadingFont) {
       document.documentElement.style.setProperty("--heading-font", savedHeadingFont);
     }
@@ -35,8 +34,16 @@ export default function App() {
       document.documentElement.style.setProperty("--theme-light", savedThemeLight);
     }
 
+    // 🛡️ د ننوتلو خوندي چک: که اډمن لاګ ان نه وي، په اتومات ډول هشت پاکوي او د مفتي خونې ته ځي
+    const token = localStorage.getItem("mufti_token");
     const h = window.location.hash.replace("#", "");
-    if (TABS.includes(h as Tab)) setTab(h as Tab);
+    
+    if (!token) {
+      setTab("fatwa");
+      window.history.replaceState(null, "", "#fatwa");
+    } else if (TABS.includes(h as Tab)) {
+      setTab(h as Tab);
+    }
   }, []);
 
   useEffect(() => {
@@ -49,7 +56,7 @@ export default function App() {
 
       {!isLiveBackend && (
         <div className="bg-red-50 px-4 py-1.5 text-center text-[11px] text-red-900">
-          ⚠️ حقيقي API نه دی تړل سوی — د کار کولو لپاره{" "}
+          ⚠️ حقيقي API نه دی تړل سوې — د کار کولو لپاره{" "}
           <span className="mono">VITE_API_BASE</span> چاپيريال متغير وټاکی.
         </div>
       )}
