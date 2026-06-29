@@ -1,5 +1,5 @@
 // ============================================================
-// د بېک انډ API کلائنټ — نړيوال او متحرک پُل
+// د بېک انډ API کلائنټ — نړيوال او متحرک پُل (د امنيتي ټوکن سره)
 // ============================================================
 // دا کلائنټ يوازي حقيقي Express سرور ته کار کوي.
 // که `VITE_API_BASE` نه وي ټاکل سوی, اپليکيشن قصداً خطا ورکوي؛ جعلي ډيمو ډيټا نه کاروي.
@@ -19,8 +19,43 @@ function requireApiBase() {
   }
 }
 
+// د اډمن د پټ ټوکن اخيستلو مرستندوی سيسټم
+function getAuthHeaders(isJson = true) {
+  const token = localStorage.getItem("mufti_token") || "";
+  const headers: Record<string, string> = {
+    "x-admin-token": token,
+  };
+  if (isJson) {
+    headers["Content-Type"] = "application/json";
+  }
+  return headers;
+}
+
 export type AskResponse = Fatwa & { model?: string; latency_ms?: number };
 
+// ------------------------------------------------------------
+// 🔑 د اډمن د ننوتلو (Login) نوی فنکشن
+// ------------------------------------------------------------
+export async function loginAdmin(email: string, password: string) {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/admin/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res));
+  const data = await res.json();
+  
+  // د کاميابۍ پر مهال پټ شفر په حافظه کي ساتي
+  if (data.token) {
+    localStorage.setItem("mufti_token", data.token);
+  }
+  return data;
+}
+
+// ------------------------------------------------------------
+// د عامو خلګو د پوښتنو لاره (بې شفر چلېږي)
+// ------------------------------------------------------------
 export async function askMufti(question: string, keyword?: string): Promise<AskResponse> {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/ask`, {
@@ -47,7 +82,7 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
         fasl: s.metadata.fasl,
         masalah: s.metadata.masalah,
         hadithNumber: s.metadata.hadith_number,
-        category: s.metadata.category, // د مأخذ د المارۍ (فن) پېژندنه
+        category: s.metadata.category,
       },
     })),
     model: data.model,
@@ -55,9 +90,15 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
   };
 }
 
+// ------------------------------------------------------------
+// د اډمن پينل خوندي لاري (اوس په اتومات ډول شفر لېږي)
+// ------------------------------------------------------------
+
 export async function getQueueStats() {
   requireApiBase();
-  const res = await fetch(`${API_BASE}/api/admin/queue`);
+  const res = await fetch(`${API_BASE}/api/admin/queue`, {
+    headers: getAuthHeaders(false),
+  });
   if (!res.ok) throw new Error(await readApiError(res));
   const d = await res.json();
   return {
@@ -74,7 +115,9 @@ export async function getQueueStats() {
 
 export async function getBooks() {
   requireApiBase();
-  const res = await fetch(`${API_BASE}/api/admin/books`);
+  const res = await fetch(`${API_BASE}/api/admin/books`, {
+    headers: getAuthHeaders(false),
+  });
   if (!res.ok) throw new Error(await readApiError(res));
   const d = await res.json();
   return d.books.map((b: any) => ({
@@ -86,11 +129,10 @@ export async function getBooks() {
     queuedChunks: b.queued_chunks,
     uploadedAt: new Date(b.uploaded_at).toLocaleDateString("ar"),
     status: b.status,
-    category: b.category || "فقه", // د کتاب المارۍ چي په اډمن پینل کي یې جلا کوي
+    category: b.category || "فقه",
   }));
 }
 
-// د کتاب اپلوډ کولو اصلاح سوی فنکشن د نويو فیلډونو سره
 export async function uploadBook(payload: {
   title: string;
   author: string;
@@ -98,9 +140,9 @@ export async function uploadBook(payload: {
   edition?: string;
   defaultVolume?: string;
   text: string;
-  category: string;     // المارۍ (فن)
-  customRule?: string;   // ځانګړي اصول
-  folderName?: string;   // د مجلداتو فولډر نوم
+  category: string;
+  customRule?: string;
+  folderName?: string;
   file?: File | null;
 }) {
   requireApiBase();
@@ -119,6 +161,7 @@ export async function uploadBook(payload: {
 
     const res = await fetch(`${API_BASE}/api/books/upload`, {
       method: "POST",
+      headers: getAuthHeaders(false), // د فارم ډېټا لپاره Content-Type په خپله جوړېږي
       body: form,
     });
     if (!res.ok) throw new Error(await readApiError(res));
@@ -127,7 +170,7 @@ export async function uploadBook(payload: {
 
   const res = await fetch(`${API_BASE}/api/books/upload`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(true),
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await readApiError(res));
@@ -148,22 +191,20 @@ export async function getFatwaHistory(limit = 20): Promise<AskResponse[]> {
   }));
 }
 
-// ============================================================
-// د کټګوريو او الماريو (Categories) مديريت
-// ============================================================
-
 export async function fetchCategories() {
   requireApiBase();
-  const res = await fetch(`${API_BASE}/api/admin/categories`);
+  const res = await fetch(`${API_BASE}/api/admin/categories`, {
+    headers: getAuthHeaders(false),
+  });
   if (!res.ok) throw new Error(await readApiError(res));
-  return res.json(); // دا د الماريو لیست راباسي
+  return res.json();
 }
 
 export async function addCategory(name: string, parent_id?: number | null, sort_order?: number) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/categories`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(true),
     body: JSON.stringify({ name, parent_id, sort_order }),
   });
   if (!res.ok) throw new Error(await readApiError(res));
@@ -174,18 +215,17 @@ export async function deleteBook(id: string) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/books/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(false),
   });
   if (!res.ok) throw new Error(await readApiError(res));
   return res.json();
 }
 
-// ============================================================
-// د اې آی د قوانينو او مغز مديريت
-// ============================================================
-
 export async function getAiRules() {
   requireApiBase();
-  const res = await fetch(`${API_BASE}/api/admin/rules`);
+  const res = await fetch(`${API_BASE}/api/admin/rules`, {
+    headers: getAuthHeaders(false),
+  });
   if (!res.ok) throw new Error(await readApiError(res));
   const d = await res.json();
   return d.rules || [];
@@ -195,7 +235,7 @@ export async function addAiRule(rule_text: string) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/rules`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getAuthHeaders(true),
     body: JSON.stringify({ rule_text }),
   });
   if (!res.ok) throw new Error(await readApiError(res));
@@ -206,7 +246,7 @@ export async function updateAiRule(id: string, is_active: boolean) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/rules/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { getAuthHeaders(true),
     body: JSON.stringify({ is_active }),
   });
   if (!res.ok) throw new Error(await readApiError(res));
@@ -217,14 +257,12 @@ export async function deleteAiRule(id: string) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/rules/${id}`, {
     method: "DELETE",
+    headers: getAuthHeaders(false),
   });
   if (!res.ok) throw new Error(await readApiError(res));
   return res.json();
 }
 
-// ============================================================
-// د خطا لوستلو مرستندوی
-// ============================================================
 async function readApiError(res: Response) {
   try {
     const data = await res.json();
