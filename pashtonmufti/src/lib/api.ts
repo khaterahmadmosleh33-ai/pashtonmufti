@@ -11,7 +11,7 @@ export const isLiveBackend = Boolean(API_BASE);
 function requireApiBase() {
   if (!API_BASE) {
     throw new Error(
-      "VITE_API_BASE نه دی ټاکل سوی. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
+      "VITE_API_BASE نه دی ټاکل سوې. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
     );
   }
 }
@@ -27,7 +27,12 @@ function getAuthHeaders(isJson = true) {
   return headers;
 }
 
-export type AskResponse = Fatwa & { model?: string; latency_ms?: number };
+// 🛡️ د ځواب په نوې نسخه کي د اړونده پوښتنو کالم (suggestedQuestions) ور زيات سو
+export type AskResponse = Fatwa & { 
+  model?: string; 
+  latency_ms?: number;
+  suggestedQuestions?: string[]; 
+};
 
 export async function loginAdmin(email: string, password: string) {
   requireApiBase();
@@ -75,18 +80,8 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
     })),
     model: data.model,
     latency_ms: data.latency_ms,
+    suggestedQuestions: data.suggestedQuestions || [], // 🔒 د اې آی لخوا د نويو جوړو سوو پوښتنو پُل دلته وتړل سو
   };
-}
-
-// ------------------------------------------------------------
-// 🔥 نوی پُل: له بېک انډ څخه د غوره ۱۰ متحرکو پوښتنو راوستل
-// ------------------------------------------------------------
-export async function getSuggestedQuestions(): Promise<string[]> {
-  requireApiBase();
-  const res = await fetch(`${API_BASE}/api/ask/suggested`);
-  if (!res.ok) throw new Error(await readApiError(res));
-  const data = await res.json();
-  return data.questions || [];
 }
 
 export async function getQueueStats() {
@@ -110,7 +105,7 @@ export async function getBooks() {
     title: b.title,
     author: b.author,
     totalChunks: parseInt(b.total_chunks || "0", 10),
-    embeddedChunks: parseInt(b.embedded_chunks || "0", 10), // 🛠️ په پوره کمال سره په سنيک_کېس اصلاح سو ترڅو سکرین سپین نه سي
+    embeddedChunks: parseInt(b.embedded_chunks || "0", 10),
     queuedChunks: parseInt(b.queued_chunks || "0", 10),
     uploadedAt: new Date(b.uploaded_at).toLocaleDateString("ar"),
     status: b.status,
@@ -256,4 +251,3 @@ async function readApiError(res: Response) {
     return `API error ${res.status}`;
   }
 }
-
