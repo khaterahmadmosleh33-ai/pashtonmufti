@@ -1,4 +1,4 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال, د سايټ تنظيمات، د اې آی مغز او د کتابتون المارۍ.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د ټولو خونو د مدغم کولو قفل سوې نسخه.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
@@ -13,10 +13,16 @@ import {
   deleteAiRule,
   fetchCategories,
   addCategory,
-  deleteBook
+  deleteBook,
+  loginAdmin // د ننوتلو نوی پُل ور زيات سو
 } from "../lib/api";
 import UploadModal from "./UploadModal";
 import SingleBookWorkbench from "./SingleBookWorkbench";
+
+// د هغو فرعي خونو راغوښتل چي له هېډر څخه د ننه را کډه سوې دي
+import Architecture from "./Architecture";
+import Evaluation from "./Evaluation";
+import Roadmap from "./Roadmap";
 
 // ==========================================
 // ستا د پي ډي اېف (PDF) د چاپولو پخوانی کوډ
@@ -171,15 +177,25 @@ export type AiRule = {
 };
 
 export default function AdminPanel() {
+  // د امنيتي ټوکن او د ننوتلو حالت څارنه
+  const [token, setToken] = useState(() => localStorage.getItem("mufti_token"));
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   const [stats, setStats] = useState<Stats | null>(null);
   const [books, setBooks] = useState<BookStatus[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"workbench" | "all" | "library" | "ai_rules" | "settings">("workbench");
+  
+  // د مېنو ټابونه د دريو نويو مدغم سوو خونو سره پوره پراخ سول
+  const [view, setView] = useState<"workbench" | "all" | "library" | "ai_rules" | "settings" | "architecture" | "evaluation" | "roadmap">("workbench");
   const [error, setError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
 
   const refresh = async () => {
+    if (!token) return; // که لاګ ان نه وي، معلومات نه غواړي
     try {
       setError(null);
       const [s, b] = await Promise.all([getQueueStats(), getBooks()]);
@@ -194,19 +210,52 @@ export default function AdminPanel() {
   };
 
   useEffect(() => {
-    refresh();
-    if (isLiveBackend) {
-      const t = setInterval(refresh, 5000);
-      return () => clearInterval(t);
+    if (token) {
+      refresh();
+      if (isLiveBackend) {
+        const t = setInterval(refresh, 5000);
+        return () => clearInterval(t);
+      }
     }
-  }, []);
+  }, [token]);
+
+  // د نوي لاګ ان او شفر د تائيدولو پروسه
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      setLoginError("مهرباني وکړی ايميل او شفر دواړه داخل کړی.");
+      return;
+    }
+    setSubmitting(true);
+    setLoginError(null);
+    try {
+      const data = await loginAdmin(email.trim(), password.trim());
+      if (data.ok && data.token) {
+        setToken(data.token);
+        window.location.reload(); // د هېډر د اتومات ريفريش او قفل خلاصېدو لپاره
+      }
+    } catch (e: any) {
+      setLoginError(e instanceof Error ? e.message : "شفر يا ايميل غلط دی!");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // د اډمن پينل څخه وتل د تل لپاره (Logout)
+  const handleLogout = () => {
+    localStorage.removeItem("mufti_token");
+    setToken(null);
+    window.location.reload();
+  };
 
   const handleUnlockJobs = async () => {
     if (!window.confirm("آيا غواړی چي ټول قلف سوي او بند پاته کارونه خلاص کړی؟")) return;
     setUnlocking(true);
     try {
       const baseUrl = import.meta.env.VITE_API_BASE || "";
-      const res = await fetch(`${baseUrl}/api/admin/unlock-stuck-jobs`, { method: "POST" });
+      const res = await fetch(`${baseUrl}/api/admin/unlock-stuck-jobs`, { 
+        method: "POST",
+        headers: { "x-admin-token": token || "" }
+      });
       const data = await res.json();
       if (data.ok) {
         alert(`برياليتوب! ${data.unlocked_count} بند سوي کارونه بېرته خلاص سول.`);
@@ -221,6 +270,54 @@ export default function AdminPanel() {
     }
   };
 
+  // 🔒 لومړی شرط: که شفر نه وي وهل سوی، د ننوتلو پاخه او ښکلي بکس ته غاړه ږدي
+  if (!token) {
+    return (
+      <div className="mx-auto max-w-md px-6 py-20">
+        <div className="rounded-3xl border border-amber-900/15 bg-white p-8 shadow-xl">
+          <h3 className="mb-2 text-2xl font-bold text-center text-emerald-950">🔐 اډمن ته ننوتل</h3>
+          <p className="mb-6 text-xs text-center text-amber-900/70">د پښتون مفتي د پټو خونو د خلاصولو لپاره خپل معلومات داخل کړی.</p>
+          {loginError && (
+            <div className="mb-4 rounded-xl bg-red-50 p-3 text-xs font-bold text-red-800 text-center">
+              {loginError}
+            </div>
+          )}
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs font-bold text-emerald-950">ايميل ادرس:</label>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full p-3 rounded-xl border border-amber-900/20 focus:outline-none focus:border-emerald-700 bg-amber-50/10 text-sm"
+                placeholder="admin@pashtonmufti.com"
+                dir="ltr"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-bold text-emerald-950">پټ نوم (Password):</label>
+              <input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 rounded-xl border border-amber-900/20 focus:outline-none focus:border-emerald-700 bg-amber-50/10 text-sm"
+                placeholder="••••••••"
+                dir="ltr"
+              />
+            </div>
+            <button 
+              onClick={handleLogin}
+              disabled={submitting}
+              className="w-full bg-emerald-700 text-amber-100 py-3 rounded-xl font-bold shadow-md hover:bg-emerald-800 transition-all text-sm"
+            >
+              {submitting ? "د دروازې د خلاصولو هڅه..." : "دروازه خلاصه کړه 🔑"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center text-emerald-800">
@@ -233,20 +330,13 @@ export default function AdminPanel() {
   }
 
   if (error || !stats) {
-    const setup = "cd server\ncp .env.example .env\n# set DATABASE_URL and GEMINI_API_KEY\nnpm install\nnpm run migrate\nnpm run dev\n\n# frontend .env.local\nVITE_API_BASE=http://localhost:8080";
     return (
       <div className="mx-auto max-w-3xl px-6 py-16">
         <div className="rounded-3xl border border-red-300 bg-red-50 p-8 text-red-900 shadow-sm">
           <h2 className="mb-2 text-2xl font-bold">حقيقي API ته تړلتيا نسته</h2>
           <p className="mb-4 text-sm leading-relaxed">
-            اډمن پينل جعلي ډيټا نه ښيي. اول Express سرور، PostgreSQL/pgvector، او
-            Gemini کيلي چالان کړی، بيا د frontend لپاره
-            <span className="mono mx-1">VITE_API_BASE</span>
-            وټاکی.
+            اډمن پينل جعلي ډيټا نه ښيي. ډاډ ترلاسه کړی چي رېنډر او ډېټابېس چالان دي.
           </p>
-          <pre className="mono overflow-x-auto rounded-xl bg-[#0b1220] p-4 text-xs text-amber-100" dir="ltr">
-            {setup}
-          </pre>
           {error && <div className="mt-3 text-xs">خطا: {error}</div>}
         </div>
       </div>
@@ -285,10 +375,17 @@ export default function AdminPanel() {
           >
             ➕ نوی کتاب اپلوډ کړی
           </button>
+          <button
+            onClick={handleLogout}
+            className="rounded-2xl bg-gray-200 px-4 py-3 text-sm font-bold text-gray-700 shadow-md hover:bg-gray-300 transition-all"
+          >
+            وتل 🚪
+          </button>
         </div>
       </div>
 
-      <div className="mb-6 inline-flex flex-wrap gap-1 rounded-2xl border border-amber-900/15 bg-white/60 p-1">
+      {/* د مېنو ټابونه — چي اوس پکي هغه نوري درې خوني په پوره کمال سره مدغم سوې دي */}
+      <div className="mb-6 inline-flex flex-wrap gap-1 rounded-2xl border border-amber-900/15 bg-white/60 p-1 shadow-sm">
         <button
           onClick={() => setView("workbench")}
           className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
@@ -313,6 +410,37 @@ export default function AdminPanel() {
         >
           📚 کتابتون او المارۍ
         </button>
+        
+        {/* 🏛️ د معمارۍ نوې مدغم سوې تڼۍ */}
+        <button
+          onClick={() => setView("architecture")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            view === "architecture" ? "tab-active bg-emerald-100 text-emerald-900" : "text-emerald-900 hover:bg-amber-50"
+          }`}
+        >
+          🏛️ معماري
+        </button>
+
+        {/* ⚖️ د ازموينې نوې مدغم سوې تڼۍ */}
+        <button
+          onClick={() => setView("evaluation")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            view === "evaluation" ? "tab-active bg-emerald-100 text-emerald-900" : "text-emerald-900 hover:bg-amber-50"
+          }`}
+        >
+          ⚖️ ازموينه
+        </button>
+
+        {/* 🗺️ د ۷ پړاوونو نقشې نوې مدغم سوې تڼۍ */}
+        <button
+          onClick={() => setView("roadmap")}
+          className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+            view === "roadmap" ? "tab-active bg-emerald-100 text-emerald-900" : "text-emerald-900 hover:bg-amber-50"
+          }`}
+        >
+          🗺️ د ۷ پړاوونو نقشه
+        </button>
+
         <button
           onClick={() => setView("ai_rules")}
           className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
@@ -334,14 +462,200 @@ export default function AdminPanel() {
       {view === "workbench" && <SingleBookWorkbench books={books} onOpenUpload={() => setOpen(true)} />}
       {view === "all" && <AllBooksView stats={stats} books={books} />}
       {view === "library" && <LibraryView books={books} refresh={refresh} />}
+      
+      {/* د نويو خونو مستقل ښکاره کېدل په خپل خپل وخت کي */}
+      {view === "architecture" && <Architecture />}
+      {view === "evaluation" && <Evaluation />}
+      {view === "roadmap" && <Roadmap />}
+
       {view === "ai_rules" && <AiRulesView />}
       {view === "settings" && <SettingsView />}
     </div>
   );
 }
 
+// ============================================================
+// 📚 د قطار، پروسس او حقيقي RAG پخوانۍ پوره برخه (Part 2)
+// ============================================================
+function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
+  return (
+    <div className="space-y-10">
+      
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          { v: "۱", l: "اول يو کتاب" },
+          { v: "DB", l: "online ډيټابېس" },
+          { v: "۹", l: "د حوالې ساحې" },
+        ].map((s) => (
+          <div
+            key={s.l}
+            className="rounded-2xl border border-amber-900/15 bg-white/70 p-4 text-center shadow-sm"
+          >
+            <div className="text-2xl font-extrabold text-emerald-900">
+              {s.v}
+            </div>
+            <div className="text-xs font-semibold text-amber-900/80">
+              {s.l}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <StatCard
+          label="ټولي ټوټي"
+          value={Number(stats.totalChunks).toLocaleString("ar")}
+          sub={`${stats.totalBooks} کتابونه`}
+          icon="🧩"
+          tone="amber"
+        />
+        <StatCard
+          label="ويکټور سوي"
+          value={Number(stats.embeddedChunks).toLocaleString("ar")}
+          sub={`${((stats.embeddedChunks / Math.max(stats.totalChunks, 1)) * 100).toFixed(1)}٪ بشپړ سوی`}
+          icon="✅"
+          tone="green"
+        />
+        <StatCard
+          label="په قطار / پاته"
+          value={Number(stats.queuedChunks).toLocaleString("ar")}
+          sub={`د هري ثانيي ${stats.rateLimit} غوښتني`}
+          icon="⏳"
+          tone="orange"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <InfoCard
+          title="د Worker حالت"
+          main={
+            <span className="flex items-center gap-2">
+              <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-green-500" />
+              {stats.workerStatus}
+            </span>
+          }
+          sub={`وروستی ويکټور: ${stats.lastEmbeddedAt}`}
+        />
+        <InfoCard
+          title="د Rate Limit"
+          main={`په ثانيه کي ${stats.rateLimit} غوښتني`}
+          sub="د Gemini د ۴۲۹ ايرر د مخنيوي لپاره"
+        />
+        <InfoCard
+          title="د Backoff تګلاره"
+          main={stats.backoffStrategy}
+          sub="په هر ناکامۍ ځنډ دوه برابره کيږي"
+          small
+        />
+      </div>
+
+      {/* د حقيقي RAG جريان پنځه پړاوېزه بکس چي په پوره کمال بېرته خوندي سو */}
+      <div className="rounded-3xl border border-amber-900/15 bg-white/40 p-6">
+        <div className="mb-4 flex items-center justify-between text-sm text-amber-900/80">
+          <span className="text-lg font-bold text-[#0f3d2e]">د حقيقي RAG جريان</span>
+          <span className="rounded-full bg-emerald-900 px-3 py-1 text-[11px] font-bold text-amber-200">
+            server-side
+          </span>
+        </div>
+        <div className="grid gap-4 md:grid-cols-5">
+          {[
+            ["۱", "کتاب اپلوډ", "پاک UTF-8 .txt فايل سرور ته ځي"],
+            ["۲", "فقهي چنکنګ", "کتاب/باب/فصل/مسأله پر بنسټ"],
+            ["۳", "ويکټورول", "embedding_queue + Gemini text-embedding-004"],
+            ["۴", "پوښتنه", "query embedding → pgvector `<=>` → context"],
+            ["۵", "ځواب", "Gemini يوازي د ورکړل سوو مراجعو څخه ليکي"],
+          ].map(([n, t, d]) => (
+            <div key={n} className="flex flex-col gap-3 rounded-2xl border border-amber-900/10 bg-white/80 p-4 shadow-sm">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-900 text-sm font-bold text-amber-200">
+                {n}
+              </span>
+              <div>
+                <div className="font-bold text-emerald-900">{t}</div>
+                <div className="mt-1 text-[11px] leading-relaxed text-amber-900/80">{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ستا د خوښې موافق د پروسس بشپړ جدول د Progress Bar او فيصدۍ سره */}
+      <div className="fatwa-card rounded-2xl">
+        <div className="flex items-center justify-between border-b border-amber-900/15 px-6 py-4">
+          <h3 className="text-lg font-bold text-emerald-900">
+            د کتابونو د پروسس حالت
+          </h3>
+          <span className="text-xs text-amber-900/70">
+            {isLiveBackend ? "🟢 د حقيقي API سره وصل" : "🔴 API نه دی تړل سوی"}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-sm">
+            <thead className="bg-amber-50/50 text-xs uppercase tracking-wider text-amber-900/80">
+              <tr>
+                <th className="px-6 py-3">د کتاب نوم</th>
+                <th className="px-6 py-3">مصنف</th>
+                <th className="px-6 py-3">ټولي ټوټي</th>
+                <th className="px-6 py-3">ويکټور سوي</th>
+                <th className="px-6 py-3">په قطار / پاته</th>
+                <th className="px-6 py-3">پرمختګ</th>
+                <th className="px-6 py-3">حالت</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-amber-900/10">
+              {books.map((b) => {
+                const pct = (b.embeddedChunks / Math.max(b.totalChunks, 1)) * 100;
+                return (
+                  <tr key={b.id} className="transition-colors hover:bg-amber-50/40">
+                    <td className="max-w-xs px-6 py-4 font-bold text-emerald-950">
+                      {b.title}
+                    </td>
+                    <td className="px-6 py-4 text-amber-900/80">{b.author}</td>
+                    <td className="px-6 py-4 mono text-emerald-900">
+                      {b.totalChunks.toLocaleString("ar")}
+                    </td>
+                    <td className="px-6 py-4 mono text-green-700">
+                      {b.embeddedChunks.toLocaleString("ar")}
+                    </td>
+                    <td className="px-6 py-4 mono text-orange-700">
+                      {b.queuedChunks.toLocaleString("ar")}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-amber-100">
+                          <div
+                            className="h-full rounded-full bg-gradient-to-l from-emerald-500 to-emerald-700 transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-emerald-900">
+                          {pct.toFixed(0)}٪
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <StatusBadge status={b.status} />
+                    </td>
+                  </tr>
+                );
+              })}
+              {books.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-10 text-center text-amber-900/70">
+                    لا تر اوسه کدام کتاب نه دی اپلوډ سوی.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
 // ==========================================
-// د کټګوريو او پوړيزو الماريو (Library) نوې برخه
+// د کټګوريو او پوړيزو الماريو (Library) برخه
 // ==========================================
 function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => void }) {
   const [categories, setCategories] = useState<any[]>([]);
@@ -393,7 +707,6 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
           📚 د کتابتون، فنونو او مذهبونو اداره
         </h3>
         
-        {/* نوی فن يا فرعي فولډر زياتول د ډراپ‌ډاون سره */}
         <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
           <label className="mb-2 block text-sm font-bold text-emerald-900">نوی فن (المارۍ يا فرعي فولډر) جوړول:</label>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -432,7 +745,6 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
           </div>
         </div>
 
-        {/* د الماريو او فرعي فولډرونو ننداره په متحرک ډول */}
         <div className="space-y-8">
           {categories.filter(c => !c.parent_id).map((mainCat) => {
             const mainCatBooks = books.filter((b: any) => b.category === mainCat.name);
@@ -445,7 +757,6 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
                   <span className="text-xs bg-emerald-100 text-emerald-800 px-3 py-1 rounded-md font-bold">ترتيب: {mainCat.sort_order}</span>
                 </div>
                 
-                {/* د اصلي کټګورۍ خپل کتابونه */}
                 {mainCatBooks.length > 0 && (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {mainCatBooks.map(book => (
@@ -461,7 +772,6 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
                   </div>
                 )}
 
-                {/* د دې لاندي فرعي فولډرونه (مذهبونه) */}
                 {subCats.length > 0 && (
                   <div className="mr-6 pr-4 border-r-2 border-emerald-800/20 space-y-6">
                     {subCats.map((subCat) => {
@@ -495,7 +805,7 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
                 )}
 
                 {mainCatBooks.length === 0 && subCats.length === 0 && (
-                  <div className="text-sm text-gray-400 p-2">په دې کټګورۍ کي تر اوسه هیڅ نه شته...</div>
+                  <div className="text-sm text-gray-400 p-2">په دې کټګورۍ کي تر اوسه هيڅ نسته...</div>
                 )}
               </div>
             );
@@ -575,9 +885,7 @@ function AiRulesView() {
         </p>
         
         <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
-          <label className="mb-2 block text-sm font-bold text-emerald-900">
-            نوی قانون ور زيات کړی:
-          </label>
+          <label className="mb-2 block text-sm font-bold text-emerald-900">نوی قانون ور زيات کړی:</label>
           <div className="flex flex-col gap-3 md:flex-row">
             <textarea
               value={newRule}
@@ -599,62 +907,37 @@ function AiRulesView() {
 
         <div>
           <h4 className="mb-4 text-lg font-bold text-emerald-900">موجوده فعال او غير فعال قوانين:</h4>
-          
           {loading ? (
             <div className="text-sm text-emerald-700">قوانين راټوليږي...</div>
           ) : rules.length === 0 ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              تر اوسه کوم قانون نه دی ثبت سوی.
-            </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">تر اوسه کوم قانون نه دی ثبت سوی.</div>
           ) : (
             <div className="space-y-3">
               {rules.map((rule, index) => (
-                <div 
-                  key={rule.id} 
-                  className={`flex flex-col justify-between gap-4 rounded-xl border p-4 shadow-sm transition-all md:flex-row md:items-center ${rule.is_active ? 'border-emerald-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-75'}`}
-                >
+                <div key={rule.id} className={`flex flex-col justify-between gap-4 rounded-xl border p-4 shadow-sm transition-all md:flex-row md:items-center ${rule.is_active ? 'border-emerald-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-75'}`}>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">
-                        {index + 1}
-                      </span>
-                      <span className={`text-xs font-bold ${rule.is_active ? 'text-emerald-600' : 'text-gray-500'}`}>
-                        {rule.is_active ? 'فعال قانون' : 'غير فعال (بند)'}
-                      </span>
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-800">{index + 1}</span>
+                      <span className={`text-xs font-bold ${rule.is_active ? 'text-emerald-600' : 'text-gray-500'}`}>{rule.is_active ? 'فعال قانون' : 'غير فعال (بند)'}</span>
                     </div>
-                    <p className={`text-sm leading-relaxed ${rule.is_active ? 'text-gray-900 font-medium' : 'text-gray-500 line-through'}`}>
-                      {rule.rule_text}
-                    </p>
+                    <p className={`text-sm leading-relaxed ${rule.is_active ? 'text-gray-900 font-medium' : 'text-gray-500 line-through'}`}>{rule.rule_text}</p>
                   </div>
-                  
                   <div className="flex items-center gap-2 shrink-0 border-t border-gray-100 pt-3 md:border-0 md:pt-0">
-                    <button
-                      onClick={() => handleToggle(rule.id, rule.is_active)}
-                      className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${rule.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}`}
-                    >
-                      {rule.is_active ? 'بند يې کړی' : 'فعال يې کړی'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(rule.id)}
-                      className="rounded-lg bg-red-50 p-2 text-red-600 transition-all hover:bg-red-100"
-                      title="د تل لپاره ړنګول"
-                    >
-                      🗑️
-                    </button>
+                    <button onClick={() => handleToggle(rule.id, rule.is_active)} className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${rule.is_active ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'}`}>{rule.is_active ? 'بند يې کړی' : 'فعال يې کړی'}</button>
+                    <button onClick={() => handleDelete(rule.id)} className="rounded-lg bg-red-50 p-2 text-red-600 transition-all hover:bg-red-100" title="د تل لپاره ړنګول">🗑️</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
 }
 
 // ==========================================
-// د سايټ د تنظيماتو (Settings) د کنټرول برخه
+// د سايټ د تنظيماتو (Settings) د کنټرول برخه — ستا د شلو تيمونو پوره نسخه
 // ==========================================
 function SettingsView() {
   const fonts = [
@@ -701,44 +984,24 @@ function SettingsView() {
   return (
     <div className="space-y-6">
       <div className="fatwa-card rounded-2xl p-8">
-        <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--theme-main)" }}>
-          🎨 د سايټ بڼه او ښکلا
-        </h3>
-        
+        <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--theme-main)" }}>🎨 د سايټ بڼه او ښکلا</h3>
         <div className="mb-8">
-          <label className="mb-3 block text-sm font-bold text-amber-900">
-            د سايټ ليکدود (Font) وټاکی:
-          </label>
+          <label className="mb-3 block text-sm font-bold text-amber-900">د سايټ ليکدود (Font) وټاکی:</label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {fonts.map((f) => (
-              <button
-                key={f.name}
-                onClick={() => handleFontChange(f.value)}
-                className="rounded-xl border border-amber-900/20 bg-white p-4 text-center transition-all hover:bg-amber-50 focus:ring-2 focus:ring-emerald-700"
-                style={{ fontFamily: f.value }}
-              >
+              <button key={f.name} onClick={() => handleFontChange(f.value)} className="rounded-xl border border-amber-900/20 bg-white p-4 text-center transition-all hover:bg-amber-50 focus:ring-2 focus:ring-emerald-700" style={{ fontFamily: f.value }}>
                 <div className="text-lg font-bold">{f.name}</div>
                 <div className="mt-2 text-xs text-amber-700">پښتون مفتي</div>
               </button>
             ))}
           </div>
         </div>
-
         <div>
-          <label className="mb-4 block text-sm font-bold text-amber-900">
-            د سايټ اصلي رنګ (Theme) وټاکی (۲۰ رنګونه):
-          </label>
+          <label className="mb-4 block text-sm font-bold text-amber-900">د سايټ اصلي رنګ (Theme) وټاکی (۲۰ رنګونه):</label>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
             {themes.map((t) => (
-              <button
-                key={t.name}
-                onClick={() => handleThemeChange(t.main, t.light)}
-                className="flex flex-col items-center gap-2 rounded-xl border border-amber-900/10 bg-white p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md"
-              >
-                <div
-                  className="h-10 w-10 rounded-full shadow-inner ring-2 ring-transparent transition-all focus:ring-emerald-700"
-                  style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }}
-                />
+              <button key={t.name} onClick={() => handleThemeChange(t.main, t.light)} className="flex flex-col items-center gap-2 rounded-xl border border-amber-900/10 bg-white p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md">
+                <div className="h-10 w-10 rounded-full shadow-inner ring-2 ring-transparent" style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }} />
                 <span className="text-xs font-bold text-amber-900">{t.name}</span>
               </button>
             ))}
@@ -750,197 +1013,9 @@ function SettingsView() {
 }
 
 // ==========================================
-// پخوانۍ برخي (ټول کتابونه، شمېرې او بيجونه)
+// د مرستندويو بيجونو او کارتونو پوره فنکشنونه
 // ==========================================
-
-function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
-  return (
-    <div className="space-y-10">
-      
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { v: "۱", l: "اول يو کتاب" },
-          { v: "DB", l: "online ډيټابېس" },
-          { v: "۹", l: "د حوالې ساحې" },
-        ].map((s) => (
-          <div
-            key={s.l}
-            className="rounded-2xl border border-amber-900/15 bg-white/70 p-4 text-center shadow-sm"
-          >
-            <div className="text-2xl font-extrabold text-emerald-900">
-              {s.v}
-            </div>
-            <div className="text-xs font-semibold text-amber-900/80">
-              {s.l}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <StatCard
-          label="ټولي ټوټي"
-          value={Number(stats.totalChunks).toLocaleString("ar")}
-          sub={`${stats.totalBooks} کتابونه`}
-          icon="🧩"
-          tone="amber"
-        />
-        <StatCard
-          label="ويکټور سوي"
-          value={Number(stats.embeddedChunks).toLocaleString("ar")}
-          sub={`${((stats.embeddedChunks / Math.max(stats.totalChunks, 1)) * 100).toFixed(1)}٪ بشپړ سوی`}
-          icon="✅"
-          tone="green"
-        />
-        <StatCard
-          label="په قطار / پاته"
-          value={Number(stats.queuedChunks).toLocaleString("ar")}
-          sub={`د هري ثانيي ${stats.rateLimit} غوښتني`}
-          icon="⏳"
-          tone="orange"
-        />
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <InfoCard
-          title="د Worker حالت"
-          main={
-            <span className="flex items-center gap-2">
-              <span className="pulse-dot h-2.5 w-2.5 rounded-full bg-green-500" />
-              {stats.workerStatus}
-            </span>
-          }
-          sub={`وروستی ويکټور: ${stats.lastEmbeddedAt}`}
-        />
-        <InfoCard
-          title="د Rate Limit"
-          main={`په ثانيه کي ${stats.rateLimit} غوښتني`}
-          sub="د Gemini د ۴۲۹ ايرر د مخنيوي لپاره"
-        />
-        <InfoCard
-          title="د Backoff تګلاره"
-          main={stats.backoffStrategy}
-          sub="په هر ناکامۍ ځنډ دوه برابره کيږي"
-          small
-        />
-      </div>
-
-      <div className="rounded-3xl border border-amber-900/15 bg-white/40 p-6">
-        <div className="mb-4 flex items-center justify-between text-sm text-amber-900/80">
-          <span className="text-lg font-bold text-[#0f3d2e]">د حقيقي RAG جريان</span>
-          <span className="rounded-full bg-emerald-900 px-3 py-1 text-[11px] font-bold text-amber-200">
-            server-side
-          </span>
-        </div>
-        <div className="grid gap-4 md:grid-cols-5">
-          {[
-            ["۱", "کتاب اپلوډ", "پاک UTF-8 .txt فايل سرور ته ځي"],
-            ["۲", "فقهي چنکنګ", "کتاب/باب/فصل/مسأله پر بنسټ"],
-            ["۳", "ويکټورول", "embedding_queue + Gemini text-embedding-004"],
-            ["۴", "پوښتنه", "query embedding → pgvector `<=>` → context"],
-            ["۵", "ځواب", "Gemini يوازي د ورکړل سوو مراجعو څخه ليکي"],
-          ].map(([n, t, d]) => (
-            <div key={n} className="flex flex-col gap-3 rounded-2xl border border-amber-900/10 bg-white/80 p-4 shadow-sm">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-900 text-sm font-bold text-amber-200">
-                {n}
-              </span>
-              <div>
-                <div className="font-bold text-emerald-900">{t}</div>
-                <div className="mt-1 text-[11px] leading-relaxed text-amber-900/80">{d}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="fatwa-card rounded-2xl">
-        <div className="flex items-center justify-between border-b border-amber-900/15 px-6 py-4">
-          <h3 className="text-lg font-bold text-emerald-900">
-            د کتابونو د پروسس حالت
-          </h3>
-          <span className="text-xs text-amber-900/70">
-            {isLiveBackend ? "🟢 د حقيقي API سره وصل" : "🔴 API نه دی تړل سوی"}
-          </span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-sm">
-            <thead className="bg-amber-50/50 text-xs uppercase tracking-wider text-amber-900/80">
-              <tr>
-                <th className="px-6 py-3">د کتاب نوم</th>
-                <th className="px-6 py-3">مصنف</th>
-                <th className="px-6 py-3">ټولي ټوټي</th>
-                <th className="px-6 py-3">ويکټور سوي</th>
-                <th className="px-6 py-3">په قطار / پاته</th>
-                <th className="px-6 py-3">پرمختګ</th>
-                <th className="px-6 py-3">حالت</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-amber-900/10">
-              {books.map((b) => {
-                const pct = (b.embeddedChunks / Math.max(b.totalChunks, 1)) * 100;
-                return (
-                  <tr key={b.id} className="transition-colors hover:bg-amber-50/40">
-                    <td className="max-w-xs px-6 py-4 font-bold text-emerald-950">
-                      {b.title}
-                    </td>
-                    <td className="px-6 py-4 text-amber-900/80">{b.author}</td>
-                    <td className="px-6 py-4 mono text-emerald-900">
-                      {b.totalChunks.toLocaleString("ar")}
-                    </td>
-                    <td className="px-6 py-4 mono text-green-700">
-                      {b.embeddedChunks.toLocaleString("ar")}
-                    </td>
-                    <td className="px-6 py-4 mono text-orange-700">
-                      {b.queuedChunks.toLocaleString("ar")}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-24 overflow-hidden rounded-full bg-amber-100">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-l from-emerald-500 to-emerald-700 transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-bold text-emerald-900">
-                          {pct.toFixed(0)}٪
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <StatusBadge status={b.status} />
-                    </td>
-                  </tr>
-                );
-              })}
-              {books.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-amber-900/70">
-                    لا تر اوسه کوم کتاب نه دی اپلوډ سوی.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  sub,
-  icon,
-  tone,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: string;
-  tone: "emerald" | "amber" | "green" | "orange";
-}) {
+function StatCard({ label, value, sub, icon, tone }: { label: string; value: string; sub?: string; icon: string; tone: "emerald" | "amber" | "green" | "orange" }) {
   const toneMap = {
     emerald: "from-emerald-50 to-emerald-100/40 text-emerald-900 border-emerald-700/20",
     amber: "from-amber-50 to-amber-100/40 text-amber-900 border-amber-700/20",
@@ -949,35 +1024,18 @@ function StatCard({
   };
   return (
     <div className={`rounded-2xl border bg-gradient-to-br p-5 shadow-sm ${toneMap[tone]}`}>
-      <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-wider opacity-70">
-          {label}
-        </span>
-        <span className="text-2xl">{icon}</span>
-      </div>
+      <div className="mb-2 flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider opacity-70">{label}</span><span className="text-2xl">{icon}</span></div>
       <div className="text-3xl font-extrabold">{value}</div>
       {sub && <div className="mt-1 text-xs opacity-70">{sub}</div>}
     </div>
   );
 }
 
-function InfoCard({
-  title,
-  main,
-  sub,
-  small,
-}: {
-  title: string;
-  main: React.ReactNode;
-  sub?: string;
-  small?: boolean;
-}) {
+function InfoCard({ title, main, sub, small }: { title: string; main: React.ReactNode; sub?: string; small?: boolean }) {
   return (
     <div className="fatwa-card rounded-2xl p-5">
       <div className="mb-1 text-xs font-bold text-amber-700">{title}</div>
-      <div className={`font-bold text-emerald-900 ${small ? "text-sm" : "text-lg"}`}>
-        {main}
-      </div>
+      <div className={`font-bold text-emerald-900 ${small ? "text-sm" : "text-lg"}`}>{main}</div>
       {sub && <div className="mt-2 text-xs text-amber-900/70">{sub}</div>}
     </div>
   );
@@ -992,9 +1050,5 @@ function StatusBadge({ status }: { status: string }) {
     failed: { label: "نا کام سوی", cls: "bg-red-100 text-red-800 ring-red-300" },
   };
   const s = map[status] || map.queued;
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${s.cls}`}>
-      {s.label}
-    </span>
-  );
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${s.cls}`}>{s.label}</span>;
 }
