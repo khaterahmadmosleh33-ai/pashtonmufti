@@ -1,33 +1,13 @@
 // ============================================================
-// POST /api/ask (خوندي او متحرک حالت — د غوره ۱۰ پوښتنو د اې پي آی سره)
+// POST /api/ask (خوندي او متحرک حالت — د اړوندو پوښتنو د ښودلو سره)
 // ============================================================
 
 import { Router } from "express";
-import { embedQuery, generateFatwa } from "../services/gemini.js";
+import { embedQuery, generateFatwa, generateRelatedQuestions } from "../services/gemini.js";
 import { hybridSearch } from "../services/retrieval.js";
 import { pool } from "../db/pool.js";
 
 const router = Router();
-
-// ------------------------------------------------------------
-// 🔥 نوي متحرکه لاره: د ټولې نړۍ تر ټولو مشهورې ۱۰ پوښتنې حسابوي او لېږي
-// ------------------------------------------------------------
-router.get("/suggested", async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT question, COUNT(*) as usage_count 
-       FROM fatwa_log 
-       GROUP BY question 
-       ORDER BY usage_count DESC 
-       LIMIT 10`
-    );
-    // يوازي د پوښتنو متن د يوه پاک ليست (Array of strings) په توګه فرنټ انډ ته لېږي
-    const popularQuestions = rows.map((r) => r.question);
-    res.json({ questions: popularQuestions });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ------------------------------------------------------------
 // د کاروونکو د خپل موبايل د پردې د ارشيف پخوانۍ لاره
@@ -76,7 +56,14 @@ router.post("/", async (req, res) => {
         [cleanQuestion, answer, process.env.GEMINI_REASON_MODEL || "unknown", latency]
       ).catch((e) => console.warn("[ask] د لاګ ساتلو کي خطا:", e.message));
 
-      return res.json({ question: cleanQuestion, answer, sources: [], model: process.env.GEMINI_REASON_MODEL || "unknown", latency_ms: latency });
+      return res.json({ 
+        question: cleanQuestion, 
+        answer, 
+        sources: [], 
+        model: process.env.GEMINI_REASON_MODEL || "unknown", 
+        latency_ms: latency,
+        suggestedQuestions: [] 
+      });
     }
 
     const { rows: ruleRows } = await pool.query("SELECT rule_text FROM ai_rules WHERE is_active = true ORDER BY created_at ASC");
@@ -85,12 +72,35 @@ router.post("/", async (req, res) => {
     const { answer, model } = await generateFatwa(cleanQuestion, sources, activeRules);
     const latency = Date.now() - t0;
 
+    // 🔒 ستا د نوي متحرک طرز موافق: د ځواب پر بنسټ د ۵ اړونده پوښتنو اتومات جوړول
+    let suggestedQuestions = [];
+    try {
+      suggestedQuestions = await generateRelatedQuestions(cleanQuestion, answer);
+    } catch (e) {
+      console.warn("[ask] د اړونده پوښتنو په جوړولو کي خطا پېښه سوه:", e.message);
+      // که په جيمينای کي خطا راسي، دا ۵ دانې د احتياط لپاره لېږي
+      suggestedQuestions = [
+        "د دغه شرعي حکم اساسي دليل څه دی؟",
+        "په دې هکله په fقه حنفي کي کوم بل روايت شته؟",
+        "که دغه حالت د مجبوري له امله وي، حکم څه سي؟",
+        "د دغې مسئلې د پلي کېدو شرطونه کوم دي؟",
+        "آيا د دغه حکم لپاره کومه استثنا شته؟"
+      ];
+    }
+
     pool.query(
       `INSERT INTO fatwa_log (question, answer, source_chunk_ids, model, latency_ms) VALUES ($1,$2,$3,$4,$5)`,
       [cleanQuestion, answer, sources.map((s) => s.id), model, latency]
     ).catch((e) => console.warn("[ask] د لاګ ساتلو کي خطا:", e.message));
 
-    return res.json({ question: cleanQuestion, answer, sources, model, latency_ms: latency });
+    return res.json({ 
+      question: cleanQuestion, 
+      answer, 
+      sources, 
+      model, 
+      latency_ms: latency,
+      suggestedQuestions 
+    });
 
   } catch (err) {
     console.error("[ask] خطا:", err);
