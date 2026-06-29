@@ -1052,3 +1052,4 @@ function StatusBadge({ status }: { status: string }) {
   const s = map[status] || map.queued;
   return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${s.cls}`}>{s.label}</span>;
 }
+
