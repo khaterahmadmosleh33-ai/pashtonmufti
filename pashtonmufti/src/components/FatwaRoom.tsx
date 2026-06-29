@@ -1,9 +1,9 @@
-// د مفتي خونه — د کاروونکي او اې آی مفتي ترمينځ د خبرو اترو انټرفيس، د سايټ ښکلا او ډانلوډ (نسخهٔ شخصي او خوندي).
+// د مفتي خونه — د کاروونکي او اې آی مفتي ترمينځ د خبرو اترو انټرفيس، د سايټ ښکلا، شخصي حريم او متحرکو کياستي پوښتنو نسخه.
 
 import { useEffect, useRef, useState } from "react";
 // @ts-ignore
 import html2pdf from "html2pdf.js";
-import { askMufti, getFatwaHistory, isLiveBackend } from "../lib/api";
+import { askMufti, isLiveBackend } from "../lib/api";
 import type { Fatwa } from "../types";
 import FatwaCard from "./FatwaCard";
 import Hero from "./Hero";
@@ -15,11 +15,12 @@ type HistoryItem = {
   at: number;
 };
 
-const suggestedQuestions = [
+// د لومړي ځل فرعي پوښتنې (کله چي لا هيڅ پوښتنه نه وي سوې)
+const initialSuggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
   "د جمعې لمانځه شرطونه کوم دي؟",
   "په زکات کي د نصاب اندازه څونه ده؟",
-  "د مسافر د لمانځه قصر شرعي حد څه دی? ",
+  "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
 
 const bodyFonts = [
@@ -89,9 +90,12 @@ export default function FatwaRoom() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  
+  // 🔒 د هر ځانګړي کاروونکي لپاره د پوښتنو تر بکس لاندي د ۵ متحرکو مسايلو حالت
+  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>(initialSuggestedQuestions);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // 🛡️ لومړنی لوډ: د نړيوال سرور پر ځای د هر کاروونکي د خپل براوزر شخصي حافظه را لولي
+  // لومړی لوډ: د نړيوال سرور پر ځای د کاروونکي د خپل موبايل شخصي حافظه را لولي
   useEffect(() => {
     try {
       const savedLocalData = localStorage.getItem("my_fatwa_history");
@@ -103,7 +107,7 @@ export default function FatwaRoom() {
     }
   }, []);
 
-  // د ژوندي ټايپينګ خوندي ماشين (Artificial Typing Animation)
+  // د ژوندي ټايپينګ هوښیار او روان ماشين
   const ask = async (q: string) => {
     if (!q.trim() || loading) return;
     setError(null);
@@ -111,13 +115,13 @@ export default function FatwaRoom() {
     setQuestion(q);
     
     try {
-      // سرور ته عادي او خوندي پوښتنه لېږو
+      // له بېک انډ څخه د ځواب او اړونده پوښتنو يو ځای راوړل
       const f = await askMufti(q);
       
       const newId = crypto.randomUUID();
       const fullAnswer = f.answer; // اصلي بشپړ ځواب
       
-      // لومړی کارډ خالي جوړوو چي توري يو يو پکي وليکل سي
+      // لومړی کارډ خالي جوړوو چي توري يو يو پکي مېشته سي
       setHistory((h) => [
         { id: newId, question: q, fatwa: { ...f, answer: "" }, at: Date.now() },
         ...h,
@@ -141,17 +145,22 @@ export default function FatwaRoom() {
         if (index >= fullAnswer.length) {
           clearInterval(typingInterval);
           
-          // 🛡️ پټ قفل راز: د ټايپينګ تر خلاصېدو وروسته دا پوښتنه يوازي د دغه کاروونکي په خپل موبايل کي خوندي کوي
+          // 🔥 الهام بخښونکی کمال: د اې آی د ځواب تر خلاصېدو وروسته چټکې پوښتنې اتومات د موضوع موافق بدليږي
+          if (f.suggestedQuestions && f.suggestedQuestions.length > 0) {
+            setDynamicSuggestions(f.suggestedQuestions);
+          }
+
+          // سيمه ييزه حافظه کي د شخصي حريم ساتل
           try {
             const finalItem: HistoryItem = { id: newId, question: q, fatwa: f, at: Date.now() };
             const currentLocal = JSON.parse(localStorage.getItem("my_fatwa_history") || "[]");
-            const updatedLocal = [finalItem, ...currentLocal].slice(0, 25); // حد اکثر ۲۵ پوښتنې ساتي
+            const updatedLocal = [finalItem, ...currentLocal].slice(0, 25); // حد اعظمي ۲۵ دانې ساتي
             localStorage.setItem("my_fatwa_history", JSON.stringify(updatedLocal));
           } catch (storageErr) {
             console.error("LocalStorage write error:", storageErr);
           }
         }
-      }, 35); // هر ۳۵ ميلي ثانيې وروسته توري زياتوي
+      }, 35);
 
     } catch (e: any) {
       setError(e.message || "ستونزه راپيدا سوه");
@@ -169,6 +178,7 @@ export default function FatwaRoom() {
     if (confirm("د پردي ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
       setHistory([]);
       localStorage.removeItem("my_fatwa_history");
+      setDynamicSuggestions(initialSuggestedQuestions); // بېرته اصلي حالت ته راګرځي
     }
   };
 
@@ -184,325 +194,142 @@ export default function FatwaRoom() {
     localStorage.setItem("mufti_theme_light", light);
   };
 
-const escapePdfText = (value: string) => {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
-
-const waitForPdfRender = () =>
-  new Promise((resolve) => setTimeout(resolve, 180));
-
-const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
-  const bodyFont =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--site-font")
-      .trim() || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
-
-  const headingFont =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--heading-font")
-      .trim() || bodyFont;
-
-  const themeColor =
-    getComputedStyle(document.documentElement)
-      .getPropertyValue("--theme-main")
-      .trim() || "#0f3d2e";
-
-  const question = escapePdfText(questionText || "");
-  const answer = escapePdfText(fatwa.answer || "");
-
-  const host = document.createElement("div");
-
-  host.style.position = "fixed";
-  host.style.left = "-10000px";
-  host.style.top = "0";
-  host.style.width = "794px";
-  host.style.background = "#ffffff";
-  host.style.zIndex = "-9999";
-  host.style.direction = "rtl";
-
-  host.innerHTML = `
-    <div
-      id="fatwa-pdf-pages"
-      dir="rtl"
-      lang="ps"
-      style="
-        width: 794px;
-        background: #ffffff;
-        direction: rtl;
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      "
-    ></div>
-  `;
-
-  document.body.appendChild(host);
-
-  if (document.fonts?.ready) {
-    await document.fonts.ready;
-  }
-
-  const pages = host.querySelector("#fatwa-pdf-pages") as HTMLDivElement;
-
-  const A4_WIDTH = 794;
-  const A4_HEIGHT = 1123;
-
-  const TOP_PADDING = 50;
-  const SIDE_PADDING_RIGHT = 15;
-  const SIDE_PADDING_LEFT = 15;
-  const BOTTOM_PADDING = 50;
-
-  const createPage = () => {
-    const page = document.createElement("div");
-
-    page.style.width = `${A4_WIDTH}px`;
-    page.style.height = `${A4_HEIGHT}px`;
-    page.style.boxSizing = "border-box";
-    page.style.padding = `${TOP_PADDING}px ${SIDE_PADDING_RIGHT}px ${BOTTOM_PADDING}px ${SIDE_PADDING_LEFT}px`;
-    page.style.margin = "0";
-    page.style.background = "#ffffff";
-    page.style.color = "#111111";
-    page.style.direction = "rtl";
-    page.style.fontFamily = bodyFont;
-    page.style.overflow = "hidden";
-
-    const content = document.createElement("div");
-
-    content.style.width = "100%";
-    content.style.height = "100%";
-    content.style.boxSizing = "border-box";
-    content.style.margin = "0";
-    content.style.padding = "0";
-    content.style.overflow = "hidden";
-    content.style.direction = "rtl";
-
-    page.appendChild(content);
-    pages.appendChild(page);
-
-    return content;
+  const escapePdfText = (value: string) => {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   };
 
-  let currentContent = createPage();
+  const waitForPdfRender = () => new Promise((resolve) => setTimeout(resolve, 180));
 
-  const isOverflowing = () => {
-    return currentContent.scrollHeight > currentContent.clientHeight + 1;
-  };
+  const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
+    const bodyFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font").trim() || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
+    const headingFont = getComputedStyle(document.documentElement).getPropertyValue("--heading-font").trim() || bodyFont;
+    const themeColor = getComputedStyle(document.documentElement).getPropertyValue("--theme-main").trim() || "#0f3d2e";
 
-  const newPage = () => {
-    currentContent = createPage();
-  };
+    const question = escapePdfText(questionText || "");
+    const answer = escapePdfText(fatwa.answer || "");
 
-  const makeTitle = (text: string) => {
-    const title = document.createElement("h2");
+    const host = document.createElement("div");
+    host.style.position = "fixed";
+    host.style.left = "-10000px";
+    host.style.top = "0";
+    host.style.width = "794px";
+    host.style.background = "#ffffff";
+    host.style.zIndex = "-9999";
+    host.style.direction = "rtl";
 
-    title.innerHTML = text;
-    title.style.margin = "0 0 24px 0";
-    title.style.padding = "0";
-    title.style.borderBottom = "none";
-    title.style.color = themeColor;
-    title.style.fontFamily = headingFont;
-    title.style.fontSize = "29px";
-    title.style.fontWeight = "900";
-    title.style.lineHeight = "1.45";
-    title.style.textAlign = "right";
-    title.style.direction = "rtl";
-    title.style.pageBreakAfter = "avoid";
-    title.style.breakAfter = "avoid";
+    host.innerHTML = `<div id="fatwa-pdf-pages" dir="rtl" lang="ps" style="width: 794px; background: #ffffff; direction: rtl; margin: 0; padding: 0; box-sizing: border-box;"></div>`;
+    document.body.appendChild(host);
 
-    return title;
-  };
+    if (document.fonts?.ready) await document.fonts.ready;
+    const pages = host.querySelector("#fatwa-pdf-pages") as HTMLDivElement;
 
-  const makeParagraph = (isQuestion = false) => {
-    const p = document.createElement("p");
+    const A4_WIDTH = 794;
+    const A4_HEIGHT = 1123;
 
-    p.style.margin = "0";
-    p.style.padding = "0";
-    p.style.background = "transparent";
-    p.style.color = "#111111";
-    p.style.direction = "rtl";
-    p.style.unicodeBidi = "plaintext";
-    p.style.textAlign = "right";
-    p.style.fontFamily = bodyFont;
-    p.style.fontSize = "22px";
-    p.style.fontWeight = "400";
-    p.style.lineHeight = isQuestion ? "2.05" : "2.08";
-    p.style.whiteSpace = "normal";
-    p.style.wordBreak = "normal";
-    p.style.overflowWrap = "anywhere";
-    p.style.maxWidth = "100%";
-    p.style.boxSizing = "border-box";
+    const createPage = () => {
+      const page = document.createElement("div");
+      page.style.width = `${A4_WIDTH}px`;
+      page.style.height = `${A4_HEIGHT}px`;
+      page.style.boxSizing = "border-box";
+      page.style.padding = `50px 15px 50px 15px`;
+      page.style.background = "#ffffff";
+      page.style.color = "#111111";
+      page.style.direction = "rtl";
+      page.style.fontFamily = bodyFont;
+      page.style.overflow = "hidden";
 
-    return p;
-  };
+      const content = document.createElement("div");
+      content.style.width = "100%";
+      content.style.height = "100%";
+      content.style.boxSizing = "border-box";
+      content.style.overflow = "hidden";
+      content.style.direction = "rtl";
 
-  const appendTitle = (text: string) => {
-    const title = makeTitle(text);
-    currentContent.appendChild(title);
+      page.appendChild(content);
+      pages.appendChild(page);
+      return content;
+    };
 
-    if (isOverflowing()) {
-      title.remove();
-      newPage();
+    let currentContent = createPage();
+    const isOverflowing = () => currentContent.scrollHeight > currentContent.clientHeight + 1;
+    const newPage = () => { currentContent = createPage(); };
+
+    const makeTitle = (text: string) => {
+      const title = document.createElement("h2");
+      title.innerHTML = text;
+      title.style.margin = "0 0 24px 0";
+      title.style.color = themeColor;
+      title.style.fontFamily = headingFont;
+      title.style.fontSize = "29px";
+      title.style.fontWeight = "900";
+      title.style.lineHeight = "1.45";
+      title.style.textAlign = "right";
+      return title;
+    };
+
+    const makeParagraph = (isQ = false) => {
+      const p = document.createElement("p");
+      p.style.margin = "0";
+      p.style.color = "#111111";
+      p.style.direction = "rtl";
+      p.style.textAlign = "right";
+      p.style.fontFamily = bodyFont;
+      p.style.fontSize = "22px";
+      p.style.lineHeight = isQ ? "2.05" : "2.08";
+      return p;
+    };
+
+    const appendTitle = (text: string) => {
+      const title = makeTitle(text);
       currentContent.appendChild(title);
-    }
-  };
+      if (isOverflowing()) { title.remove(); newPage(); currentContent.appendChild(title); }
+    };
 
-  const appendSpacer = (height: number) => {
-    const spacer = document.createElement("div");
-    spacer.style.height = `${height}px`;
-    spacer.style.margin = "0";
-    spacer.style.padding = "0";
-    currentContent.appendChild(spacer);
+    const appendTextSmart = (rawText: string, isQ = false) => {
+      const cleanText = String(rawText || "").replace(/\s+/g, " ").trim();
+      if (!cleanText) return;
+      const words = cleanText.split(" ");
+      let p = makeParagraph(isQ);
+      currentContent.appendChild(p);
+      let currentText = "";
 
-    if (isOverflowing()) {
-      spacer.remove();
-    }
-  };
-
-  const appendQuestionGreenLine = () => {
-    const line = document.createElement("div");
-
-    line.style.width = "100%";
-    line.style.height = "3px";
-    line.style.background = themeColor;
-    line.style.margin = "10px 0 28px 0";
-    line.style.padding = "0";
-
-    currentContent.appendChild(line);
-
-    if (isOverflowing()) {
-      line.remove();
-      newPage();
-      currentContent.appendChild(line);
-    }
-  };
-
-  const appendAnswerEndLine = () => {
-    const line = document.createElement("div");
-
-    line.style.width = "100%";
-    line.style.height = "3px";
-    line.style.background = themeColor;
-    line.style.margin = "18px 0 0 0";
-    line.style.padding = "0";
-
-    currentContent.appendChild(line);
-
-    if (isOverflowing()) {
-      line.remove();
-      newPage();
-      currentContent.appendChild(line);
-    }
-  };
-
-  const appendTextSmart = (rawText: string, isQuestion = false) => {
-    const cleanText = String(rawText || "").replace(/\s+/g, " ").trim();
-
-    if (!cleanText) return;
-
-    const words = cleanText.split(" ");
-    let p = makeParagraph(isQuestion);
-    let currentText = "";
-
-    currentContent.appendChild(p);
-
-    for (const word of words) {
-      const nextText = currentText ? `${currentText} ${word}` : word;
-      p.innerHTML = nextText;
-
-      if (isOverflowing()) {
-        p.innerHTML = currentText;
-
-        if (!currentText) {
-          p.remove();
+      for (const word of words) {
+        const nextText = currentText ? `${currentText} ${word}` : word;
+        p.innerHTML = nextText;
+        if (isOverflowing()) {
+          p.innerHTML = currentText;
           newPage();
-
-          p = makeParagraph(isQuestion);
+          p = makeParagraph(isQ);
           p.innerHTML = word;
           currentContent.appendChild(p);
           currentText = word;
-          continue;
+        } else {
+          currentText = nextText;
         }
-
-        newPage();
-
-        p = makeParagraph(isQuestion);
-        p.innerHTML = word;
-        currentContent.appendChild(p);
-        currentText = word;
-      } else {
-        currentText = nextText;
       }
-    }
-  };
+    };
 
-  const appendParagraph = (paragraphText: string, isQuestion = false) => {
-    appendTextSmart(paragraphText, isQuestion);
-    appendSpacer(isQuestion ? 30 : 18);
-  };
+    appendTitle("پوښتنه");
+    appendTextSmart(question, true);
+    appendTitle("الجواب");
+    answer.split(/\n+/).map(p => p.trim()).filter(Boolean).forEach(p => appendTextSmart(p, false));
 
-  appendTitle("پوښتنه");
-  appendParagraph(question, true);
-  appendQuestionGreenLine();
-
-  appendTitle("الجواب");
-
-  answer
-    .split(/\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-    .forEach((paragraph) => {
-      appendParagraph(paragraph, false);
-    });
-
-  appendAnswerEndLine();
-
-  Array.from(pages.children).forEach((page) => {
-    const text = page.textContent?.replace(/\s+/g, "").trim();
-
-    if (!text) {
-      page.remove();
-    }
-  });
-
-  await waitForPdfRender();
-
-  try {
-    await (html2pdf() as any)
-      .set({
+    await waitForPdfRender();
+    try {
+      await (html2pdf() as any).set({
         filename: "Pashton-Mufti-Fatwa.pdf",
         margin: 0,
-        image: {
-          type: "jpeg",
-          quality: 0.98,
-        },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#ffffff",
-          letterRendering: true,
-          scrollX: 0,
-          scrollY: 0,
-          windowWidth: A4_WIDTH,
-          width: A4_WIDTH,
-        },
-        jsPDF: {
-          unit: "px",
-          format: [A4_WIDTH, A4_HEIGHT],
-          orientation: "portrait",
-          hotfixes: ["px_scaling"],
-        },
-      })
-      .from(pages)
-      .save();
-  } finally {
-    host.remove();
-  }
-};
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", windowWidth: A4_WIDTH, width: A4_WIDTH },
+        jsPDF: { unit: "px", format: [A4_WIDTH, A4_HEIGHT], orientation: "portrait", hotfixes: ["px_scaling"] },
+      }).from(pages).save();
+    } finally { host.remove(); }
+  };
   
   return (
     <>
@@ -557,14 +384,9 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
 
         <div ref={askBoxRef} className="fatwa-card rounded-3xl p-6 md:p-8">
           <div className="mb-3 flex items-center justify-between">
-            <label className="text-sm font-bold" style={{ color: "var(--theme-main, #0f3d2e)" }}>
-              ستاسي فقهي پوښتنه:
-            </label>
+            <label className="text-sm font-bold text-emerald-900">ستاسي فقهي پوښتنه:</label>
             {history.length > 0 && (
-              <button
-                onClick={clearHistory}
-                className="text-xs font-bold text-amber-700 hover:text-amber-900"
-              >
+              <button onClick={clearHistory} className="text-xs font-bold text-amber-700 hover:text-amber-900">
                 🗑️ د پردي تاريخ پاکول
               </button>
             )}
@@ -586,26 +408,26 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
               onClick={() => ask(question)}
               disabled={loading || !question.trim()}
               className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, var(--theme-main), var(--theme-light))" }}
+              style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
             >
               {loading ? "د لټون په حال کي…" : "پوښتنه وکړی"}
             </button>
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="text-xs font-bold text-amber-900/70">
-              چټکي پوښتني:
-            </span>
-            {suggestedQuestions.map((q) => (
-              <button
-                key={q}
-                onClick={() => ask(q)}
-                className="rounded-full border border-amber-900/20 bg-amber-50/50 px-3 py-1 text-xs transition-colors hover:bg-amber-100"
-                style={{ color: "var(--theme-main, #0f3d2e)" }}
-              >
-                {q}
-              </button>
-            ))}
+          {/* 📊 د زړو ثابتو پوښتنو پر ځای د کياستي متحرکو بټنو ننداره */}
+          <div className="mt-5 flex flex-col gap-2">
+            <span className="text-xs font-bold text-amber-900/70">چټکي او اړونده پوښتني:</span>
+            <div className="flex flex-wrap gap-2">
+              {dynamicSuggestions.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => ask(q)}
+                  className="rounded-full border border-amber-900/20 bg-amber-50/50 px-3 py-1.5 text-xs font-medium text-emerald-950 hover:bg-amber-100 transition-all text-right"
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
