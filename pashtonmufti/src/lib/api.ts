@@ -11,7 +11,7 @@ export const isLiveBackend = Boolean(API_BASE);
 function requireApiBase() {
   if (!API_BASE) {
     throw new Error(
-      "VITE_API_BASE نه دی ټاکل سوې. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
+      "VITE_API_BASE نه دی ټاکل سوی. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
     );
   }
 }
@@ -76,6 +76,17 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
     model: data.model,
     latency_ms: data.latency_ms,
   };
+}
+
+// ------------------------------------------------------------
+// 🔥 نوی پُل: له بېک انډ څخه د غوره ۱۰ متحرکو پوښتنو راوستل
+// ------------------------------------------------------------
+export async function getSuggestedQuestions(): Promise<string[]> {
+  requireApiBase();
+  const res = await fetch(`${API_BASE}/api/ask/suggested`);
+  if (!res.ok) throw new Error(await readApiError(res));
+  const data = await res.json();
+  return data.questions || [];
 }
 
 export async function getQueueStats() {
@@ -245,3 +256,4 @@ async function readApiError(res: Response) {
     return `API error ${res.status}`;
   }
 }
+
