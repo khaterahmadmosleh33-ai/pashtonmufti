@@ -1,5 +1,5 @@
 // ============================================================
-// POST /api/ask (خوندي او پخوانی حالت)
+// POST /api/ask (خوندي او متحرک حالت — د غوره ۱۰ پوښتنو د اې پي آی سره)
 // ============================================================
 
 import { Router } from "express";
@@ -9,6 +9,29 @@ import { pool } from "../db/pool.js";
 
 const router = Router();
 
+// ------------------------------------------------------------
+// 🔥 نوي متحرکه لاره: د ټولې نړۍ تر ټولو مشهورې ۱۰ پوښتنې حسابوي او لېږي
+// ------------------------------------------------------------
+router.get("/suggested", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT question, COUNT(*) as usage_count 
+       FROM fatwa_log 
+       GROUP BY question 
+       ORDER BY usage_count DESC 
+       LIMIT 10`
+    );
+    // يوازي د پوښتنو متن د يوه پاک ليست (Array of strings) په توګه فرنټ انډ ته لېږي
+    const popularQuestions = rows.map((r) => r.question);
+    res.json({ questions: popularQuestions });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------------------------
+// د کاروونکو د خپل موبايل د پردې د ارشيف پخوانۍ لاره
+// ------------------------------------------------------------
 router.get("/history", async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit || "20", 10), 100);
   try {
@@ -22,6 +45,9 @@ router.get("/history", async (req, res) => {
   }
 });
 
+// ------------------------------------------------------------
+// د عامو خلګو د نوې پوښتنې او فقهي چنکنګ پخوانۍ لاره
+// ------------------------------------------------------------
 router.post("/", async (req, res) => {
   const t0 = Date.now();
   const { question, keyword } = req.body || {};
