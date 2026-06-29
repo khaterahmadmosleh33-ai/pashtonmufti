@@ -1,4 +1,4 @@
-// د مفتي خونه — د کاروونکي او اې آی مفتي ترمنځ د خبرو اترو انټرفيس، د سايټ ښکلا او ډانلوډ.
+// د مفتي خونه — د کاروونکي او اې آی مفتي ترمينځ د خبرو اترو انټرفيس، د سايټ ښکلا او ډانلوډ (نسخهٔ شخصي او خوندي).
 
 import { useEffect, useRef, useState } from "react";
 // @ts-ignore
@@ -19,7 +19,7 @@ const suggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
   "د جمعې لمانځه شرطونه کوم دي؟",
   "په زکات کي د نصاب اندازه څونه ده؟",
-  "د مسافر د لمانځه قصر شرعي حد څه دی؟",
+  "د مسافر د لمانځه قصر شرعي حد څه دی? ",
 ];
 
 const bodyFonts = [
@@ -91,20 +91,16 @@ export default function FatwaRoom() {
   const [showSettings, setShowSettings] = useState(false);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
+  // 🛡️ لومړنی لوډ: د نړيوال سرور پر ځای د هر کاروونکي د خپل براوزر شخصي حافظه را لولي
   useEffect(() => {
-    if (!isLiveBackend) return;
-    getFatwaHistory(20)
-      .then((items) => {
-        setHistory(
-          items.map((fatwa, i) => ({
-            id: `server-${i}`,
-            question: fatwa.question || "فقهي پوښتنه (له ارشيف څخه)", 
-            fatwa,
-            at: Date.now() - i,
-          }))
-        );
-      })
-      .catch(() => {});
+    try {
+      const savedLocalData = localStorage.getItem("my_fatwa_history");
+      if (savedLocalData) {
+        setHistory(JSON.parse(savedLocalData));
+      }
+    } catch (e) {
+      console.error("Local history read error:", e);
+    }
   }, []);
 
   // د ژوندي ټايپينګ خوندي ماشين (Artificial Typing Animation)
@@ -132,7 +128,7 @@ export default function FatwaRoom() {
       }, 100);
 
       let index = 0;
-      const speed = 1; // په يوه ځل څو توري وليکي (هر څومره چي غټ وي تېز ليکي)
+      const speed = 1; // په يوه ځل څو توري وليکي
       
       const typingInterval = setInterval(() => {
         index += speed;
@@ -144,6 +140,16 @@ export default function FatwaRoom() {
 
         if (index >= fullAnswer.length) {
           clearInterval(typingInterval);
+          
+          // 🛡️ پټ قفل راز: د ټايپينګ تر خلاصېدو وروسته دا پوښتنه يوازي د دغه کاروونکي په خپل موبايل کي خوندي کوي
+          try {
+            const finalItem: HistoryItem = { id: newId, question: q, fatwa: f, at: Date.now() };
+            const currentLocal = JSON.parse(localStorage.getItem("my_fatwa_history") || "[]");
+            const updatedLocal = [finalItem, ...currentLocal].slice(0, 25); // حد اکثر ۲۵ پوښتنې ساتي
+            localStorage.setItem("my_fatwa_history", JSON.stringify(updatedLocal));
+          } catch (storageErr) {
+            console.error("LocalStorage write error:", storageErr);
+          }
         }
       }, 35); // هر ۳۵ ميلي ثانيې وروسته توري زياتوي
 
@@ -158,8 +164,12 @@ export default function FatwaRoom() {
     askBoxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  // د خپل موبايل د شخصي تاريخچې پاکول
   const clearHistory = () => {
-    if (confirm("د پردې ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) setHistory([]);
+    if (confirm("د پردي ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
+      setHistory([]);
+      localStorage.removeItem("my_fatwa_history");
+    }
   };
 
   const applyFont = (variable: string, val: string, storageKey: string) => {
@@ -465,14 +475,11 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
     await (html2pdf() as any)
       .set({
         filename: "Pashton-Mufti-Fatwa.pdf",
-
         margin: 0,
-
         image: {
           type: "jpeg",
           quality: 0.98,
         },
-
         html2canvas: {
           scale: 2,
           useCORS: true,
@@ -483,7 +490,6 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
           windowWidth: A4_WIDTH,
           width: A4_WIDTH,
         },
-
         jsPDF: {
           unit: "px",
           format: [A4_WIDTH, A4_HEIGHT],
@@ -559,7 +565,7 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
                 onClick={clearHistory}
                 className="text-xs font-bold text-amber-700 hover:text-amber-900"
               >
-                🗑️ د پردې تاريخ پاکول
+                🗑️ د پردي تاريخ پاکول
               </button>
             )}
           </div>
@@ -580,7 +586,7 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
               onClick={() => ask(question)}
               disabled={loading || !question.trim()}
               className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
+              style={{ background: "linear-gradient(135deg, var(--theme-main), var(--theme-light))" }}
             >
               {loading ? "د لټون په حال کي…" : "پوښتنه وکړی"}
             </button>
@@ -638,7 +644,7 @@ const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
                     style={{ color: "var(--theme-main, #0f3d2e)" }}
                   >
-                    📄 يوازي دا فتوا PDF کښته کړه
+                    📄 يوازي دا فتوا PDF کښته کړی
                   </button>
                 </div>
 
