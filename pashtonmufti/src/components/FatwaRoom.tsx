@@ -19,7 +19,7 @@ type HistoryItem = {
 const initialSuggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
   "د جمعې لمانځه شرطونه کوم دي؟",
-  "په زکات کي د نصاب اندازه څونه ده؟",
+  "په زکات کي د نصاب اندازه څونه ده？",
   "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
 
@@ -78,7 +78,7 @@ const themes = [
   { name: "نارنجي", main: "#c2410c", light: "#9a3412" },
   { name: "تېز زېړ", main: "#d97706", light: "#b45309" },
   { name: "سرو زرو", main: "#b08742", light: "#8a6a32" },
-  { name: "خړ", main: "#334155", merge: "#1e293b" },
+  { name: "خړ", main: "#334155", light: "#1e293b" },
   { name: "تور", main: "#111111", light: "#222222" },
   { name: "قهوه يي", main: "#4a2c0f", light: "#381e08" },
   { name: "شاهي سور", main: "#831843", light: "#500724" },
@@ -95,7 +95,7 @@ export default function FatwaRoom() {
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>(initialSuggestedQuestions);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // 🔒 لومړی لوډ: د تاريخچې تر څنګ، وروستۍ اړونده پوښتنې هم د موبايل له دایمي حافظې څخه را لولي
+  // 🔒 لومړی لوډ: د تاريخچې تر څنګ، وروستۍ اړونده پوښتني هم د موبايل له دایمي حافظې څخه را لولي چي غيب نه سي
   useEffect(() => {
     try {
       const savedLocalData = localStorage.getItem("my_fatwa_history");
@@ -103,7 +103,7 @@ export default function FatwaRoom() {
         setHistory(JSON.parse(savedLocalData));
       }
       
-      // د متحرکو او کياستي پوښتنو بېرته راوړل چي د پاڼي په اړولو غيب نه سي
+      // ستا د خوښي موافق د نويو پوښتنو بېرته راوړل تر څو د پاڼي په اړولو غيب نه سي
       const savedSuggestions = localStorage.getItem("my_dynamic_suggestions");
       if (savedSuggestions) {
         setDynamicSuggestions(JSON.parse(savedSuggestions));
@@ -151,7 +151,7 @@ export default function FatwaRoom() {
         if (index >= fullAnswer.length) {
           clearInterval(typingInterval);
           
-          // 🔥 د اې آی د ځواب تر خلاصېدو وروسته چټکې پوښتنې اتومات بدليږي او په حافظه کي لاک کيږي
+          // 🔥 د اې آی د ځواب تر خلاصېدو وروسته چټکي پوښتني اتومات بدليږي او په حافظه کي د تل لپاره لاک کيږي
           if (f.suggestedQuestions && f.suggestedQuestions.length > 0) {
             setDynamicSuggestions(f.suggestedQuestions);
             try {
@@ -186,7 +186,7 @@ export default function FatwaRoom() {
 
   // د خپل موبايل د شخصي تاريخچې او خوندي سوو پوښتنو پاکول
   const clearHistory = () => {
-    if (confirm("د پردې ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
+    if (confirm("د پردي ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
       setHistory([]);
       localStorage.removeItem("my_fatwa_history");
       localStorage.removeItem("my_dynamic_suggestions"); // 🔒 د متحرکو پوښتنو د حافظې پاکول
@@ -436,7 +436,8 @@ export default function FatwaRoom() {
                   onClick={() => ask(q)}
                   className="rounded-full border border-amber-900/20 bg-amber-50/50 px-3 py-1.5 text-xs font-medium text-emerald-950 hover:bg-amber-100 transition-all text-right"
                 >
-                  {q                </button>
+                  {q}
+                </button>
               ))}
             </div>
           </div>
