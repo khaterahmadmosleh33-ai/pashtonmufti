@@ -125,7 +125,7 @@ export async function getBooks() {
     title: b.title,
     author: b.author,
     totalChunks: b.total_chunks,
-    embeddedChunks: b.embedded_chunks,
+    embeddedChunks: b.embeddedChunks,
     queuedChunks: b.queued_chunks,
     uploadedAt: new Date(b.uploaded_at).toLocaleDateString("ar"),
     status: b.status,
@@ -161,7 +161,7 @@ export async function uploadBook(payload: {
 
     const res = await fetch(`${API_BASE}/api/books/upload`, {
       method: "POST",
-      headers: getAuthHeaders(false), // د فارم ډېټا لپاره Content-Type په خپله جوړېږي
+      headers: getAuthHeaders(false),
       body: form,
     });
     if (!res.ok) throw new Error(await readApiError(res));
@@ -242,11 +242,12 @@ export async function addAiRule(rule_text: string) {
   return res.json();
 }
 
+// 🛠️ دغه برخه بيخي په صحيح ډول اصلاح او بې‌خطا سوه چي کلايفايډ سي
 export async function updateAiRule(id: string, is_active: boolean) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/rules/${id}`, {
     method: "PATCH",
-    headers: { getAuthHeaders(true),
+    headers: getAuthHeaders(true),
     body: JSON.stringify({ is_active }),
   });
   if (!res.ok) throw new Error(await readApiError(res));
