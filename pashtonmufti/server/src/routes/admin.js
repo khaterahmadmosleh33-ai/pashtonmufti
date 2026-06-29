@@ -1,11 +1,54 @@
 // ============================================================
-// د اډمن پينل لپاره API لاري — نړيوال او متحرک نسخه
+// د اډمن پينل لپاره API لاري — نړيوال او متحرک نسخه (د امنيتي قفل سره)
 // ============================================================
 
 import { Router } from "express";
 import { pool } from "../db/pool.js";
 
 const router = Router();
+
+// ------------------------------------------------------------
+// 🔑 د اډمن د ننوتلو (Login) لاره — عامه ده او شفر چک کوي
+// ------------------------------------------------------------
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // که په رېنډر کي ADMIN_EMAIL نه وي، دا د بېلګي ايميل کاروي
+    const expectedEmail = process.env.ADMIN_EMAIL || "admin@pashtonmufti.com";
+    const expectedPassword = process.env.ADMIN_PASSWORD;
+
+    if (!expectedPassword) {
+      return res.status(500).json({ error: "په سرور (Render) کي د اډمن پاسورډ (ADMIN_PASSWORD) نه دی سټ سوی." });
+    }
+
+    if (email === expectedEmail && password === expectedPassword) {
+      // د کاميابۍ پر مهال پټ ټوکن (چي هماغه پاسورډ دی) فرنټ انډ ته لېږي
+      return res.json({ ok: true, token: expectedPassword });
+    } else {
+      return res.status(401).json({ error: "ايميل يا پټ نوم (Password) غلط دی!" });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ------------------------------------------------------------
+// 🛡️ د امنيت سپوږمۍ (Auth Middleware) — دا لاندي ټول قفل کوي!
+// ------------------------------------------------------------
+router.use((req, res, next) => {
+  const adminToken = req.headers["x-admin-token"];
+  const expectedToken = process.env.ADMIN_PASSWORD;
+
+  if (!expectedToken || adminToken !== expectedToken) {
+    return res.status(401).json({ error: "تاسو د دغه کار مسؤوليت او واک نه لری! د سرور له خوا بنديز دی." });
+  }
+  next();
+});
+
+// ============================================================
+// د اډمن پينل لاري — (اوس بيخي خوندي دي او بې شفر ځني نه سي تېرېدلای)
+// ============================================================
 
 // د عمومي قطار حالت
 router.get("/queue", async (_req, res) => {
@@ -47,7 +90,7 @@ router.get("/books", async (_req, res) => {
   }
 });
 
-// د ډېټابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پينل لپاره — د هوښيار ترتيب او فرعي فولډرونو سره
+// د ډېټابېس څخه د ټولو فعالو فنونو (الماريو) رايستل د اډمن پينل لپاره
 router.get("/categories", async (_req, res) => {
   try {
     const result = await pool.query(
@@ -68,7 +111,6 @@ router.post("/categories", async (req, res) => {
       return res.status(400).json({ error: "د فن (المارۍ) نوم حتمي دی." });
     }
     
-    // که parent_id يا sort_order نه وي راغلي، په اتومات ډول هغوی په نښه کوي
     const parentId = parent_id ? parseInt(parent_id, 10) : null;
     const sortOrder = sort_order ? parseInt(sort_order, 10) : 0;
 
@@ -83,7 +125,7 @@ router.post("/categories", async (req, res) => {
   }
 });
 
-// د يوې کټګورۍ یا فن ړنګول (که اړتيا پېښه سي)
+// د يوې کټګورۍ یا فن ړنګول
 router.delete("/categories/:name", async (req, res) => {
   try {
     const { name } = req.params;
@@ -99,7 +141,6 @@ router.delete("/categories/:name", async (req, res) => {
 router.delete("/books/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    // د ON DELETE CASCADE له امله د کتاب په پاکولو سره ټول اړوند چنکونه او قطارونه په اتومات ډول پاکيږي
     const result = await pool.query(`DELETE FROM books WHERE id = $1`, [id]);
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "کتاب ونه موندل سو." });
@@ -159,7 +200,6 @@ router.post("/unlock-stuck-jobs", async (_req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ============================================================
 // 🧠 API لاري د اې آی د قوانينو (مغز) لپاره — پوره خوندي دي
