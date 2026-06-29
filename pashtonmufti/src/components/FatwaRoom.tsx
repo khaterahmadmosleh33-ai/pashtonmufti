@@ -78,7 +78,7 @@ const themes = [
   { name: "نارنجي", main: "#c2410c", light: "#9a3412" },
   { name: "تېز زېړ", main: "#d97706", light: "#b45309" },
   { name: "سرو زرو", main: "#b08742", light: "#8a6a32" },
-  { name: "خړ", main: "#334155", light: "#1e293b" },
+  { name: "خړ", main: "#334155", merge: "#1e293b" },
   { name: "تور", main: "#111111", light: "#222222" },
   { name: "قهوه يي", main: "#4a2c0f", light: "#381e08" },
   { name: "شاهي سور", main: "#831843", light: "#500724" },
@@ -91,16 +91,22 @@ export default function FatwaRoom() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   
-  // 🔒 د هر ځانګړي کاروونکي لپاره د پوښتنو تر بکس لاندي د ۵ متحرکو مسايلو حالت
+  // د هر کاروونکي لپاره د پوښتنو تر بکس لاندي د ۵ متحرکو مسايلو حالت
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>(initialSuggestedQuestions);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // لومړی لوډ: د نړيوال سرور پر ځای د کاروونکي د خپل موبايل شخصي حافظه را لولي
+  // 🔒 لومړی لوډ: د تاريخچې تر څنګ، وروستۍ اړونده پوښتنې هم د موبايل له دایمي حافظې څخه را لولي
   useEffect(() => {
     try {
       const savedLocalData = localStorage.getItem("my_fatwa_history");
       if (savedLocalData) {
         setHistory(JSON.parse(savedLocalData));
+      }
+      
+      // د متحرکو او کياستي پوښتنو بېرته راوړل چي د پاڼي په اړولو غيب نه سي
+      const savedSuggestions = localStorage.getItem("my_dynamic_suggestions");
+      if (savedSuggestions) {
+        setDynamicSuggestions(JSON.parse(savedSuggestions));
       }
     } catch (e) {
       console.error("Local history read error:", e);
@@ -145,9 +151,14 @@ export default function FatwaRoom() {
         if (index >= fullAnswer.length) {
           clearInterval(typingInterval);
           
-          // 🔥 الهام بخښونکی کمال: د اې آی د ځواب تر خلاصېدو وروسته چټکې پوښتنې اتومات د موضوع موافق بدليږي
+          // 🔥 د اې آی د ځواب تر خلاصېدو وروسته چټکې پوښتنې اتومات بدليږي او په حافظه کي لاک کيږي
           if (f.suggestedQuestions && f.suggestedQuestions.length > 0) {
             setDynamicSuggestions(f.suggestedQuestions);
+            try {
+              localStorage.setItem("my_dynamic_suggestions", JSON.stringify(f.suggestedQuestions));
+            } catch (err) {
+              console.error("LocalStorage suggestions error:", err);
+            }
           }
 
           // سيمه ييزه حافظه کي د شخصي حريم ساتل
@@ -173,11 +184,12 @@ export default function FatwaRoom() {
     askBoxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  // د خپل موبايل د شخصي تاريخچې پاکول
+  // د خپل موبايل د شخصي تاريخچې او خوندي سوو پوښتنو پاکول
   const clearHistory = () => {
-    if (confirm("د پردي ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
+    if (confirm("د پردې ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
       setHistory([]);
       localStorage.removeItem("my_fatwa_history");
+      localStorage.removeItem("my_dynamic_suggestions"); // 🔒 د متحرکو پوښتنو د حافظې پاکول
       setDynamicSuggestions(initialSuggestedQuestions); // بېرته اصلي حالت ته راګرځي
     }
   };
@@ -414,7 +426,7 @@ export default function FatwaRoom() {
             </button>
           </div>
 
-          {/* 📊 د زړو ثابتو پوښتنو پر ځای د کياستي متحرکو بټنو ننداره */}
+          {/* 📊 د کياستي او اړونده پوښتنو ننداره چي د براوزر په حافظه کي لاک سوې ده */}
           <div className="mt-5 flex flex-col gap-2">
             <span className="text-xs font-bold text-amber-900/70">چټکي او اړونده پوښتني:</span>
             <div className="flex flex-wrap gap-2">
@@ -424,8 +436,7 @@ export default function FatwaRoom() {
                   onClick={() => ask(q)}
                   className="rounded-full border border-amber-900/20 bg-amber-50/50 px-3 py-1.5 text-xs font-medium text-emerald-950 hover:bg-amber-100 transition-all text-right"
                 >
-                  {q}
-                </button>
+                  {q                </button>
               ))}
             </div>
           </div>
