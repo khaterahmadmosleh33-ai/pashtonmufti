@@ -1,9 +1,6 @@
 // ============================================================
 // د بېک انډ API کلائنټ — نړيوال او متحرک پُل (د امنيتي ټوکن سره)
 // ============================================================
-// دا کلائنټ يوازي حقيقي Express سرور ته کار کوي.
-// که `VITE_API_BASE` نه وي ټاکل سوی, اپليکيشن قصداً خطا ورکوي؛ جعلي ډيمو ډيټا نه کاروي.
-// ============================================================
 
 import type { Fatwa } from "../types";
 
@@ -14,12 +11,11 @@ export const isLiveBackend = Boolean(API_BASE);
 function requireApiBase() {
   if (!API_BASE) {
     throw new Error(
-      "VITE_API_BASE نه دی ټاکل سوی. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
+      "VITE_API_BASE نه دی ټاکل سوې. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
     );
   }
 }
 
-// د اډمن د پټ ټوکن اخيستلو مرستندوی سيسټم
 function getAuthHeaders(isJson = true) {
   const token = localStorage.getItem("mufti_token") || "";
   const headers: Record<string, string> = {
@@ -33,9 +29,6 @@ function getAuthHeaders(isJson = true) {
 
 export type AskResponse = Fatwa & { model?: string; latency_ms?: number };
 
-// ------------------------------------------------------------
-// 🔑 د اډمن د ننوتلو (Login) نوی فنکشن
-// ------------------------------------------------------------
 export async function loginAdmin(email: string, password: string) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/login`, {
@@ -45,17 +38,12 @@ export async function loginAdmin(email: string, password: string) {
   });
   if (!res.ok) throw new Error(await readApiError(res));
   const data = await res.json();
-  
-  // د کاميابۍ پر مهال پټ شفر په حافظه کي ساتي
   if (data.token) {
     localStorage.setItem("mufti_token", data.token);
   }
   return data;
 }
 
-// ------------------------------------------------------------
-// د عامو خلګو د پوښتنو لاره (بې شفر چلېږي)
-// ------------------------------------------------------------
 export async function askMufti(question: string, keyword?: string): Promise<AskResponse> {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/ask`, {
@@ -90,27 +78,13 @@ export async function askMufti(question: string, keyword?: string): Promise<AskR
   };
 }
 
-// ------------------------------------------------------------
-// د اډمن پينل خوندي لاري (اوس په اتومات ډول شفر لېږي)
-// ------------------------------------------------------------
-
 export async function getQueueStats() {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/queue`, {
     headers: getAuthHeaders(false),
   });
   if (!res.ok) throw new Error(await readApiError(res));
-  const d = await res.json();
-  return {
-    totalBooks: parseInt(d.total_books),
-    totalChunks: parseInt(d.total_chunks),
-    embeddedChunks: parseInt(d.embedded_chunks),
-    queuedChunks: parseInt(d.queued_chunks),
-    rateLimit: d.rate_per_sec,
-    backoffStrategy: `Exponential (1s → 2s → 4s … حد اعظمي ۶۰ ثانيي)`,
-    workerStatus: d.worker_status,
-    lastEmbeddedAt: d.last_embedded_at || "اوس مهال",
-  };
+  return res.json();
 }
 
 export async function getBooks() {
@@ -124,9 +98,9 @@ export async function getBooks() {
     id: String(b.id),
     title: b.title,
     author: b.author,
-    totalChunks: b.total_chunks,
-    embeddedChunks: b.embeddedChunks,
-    queuedChunks: b.queued_chunks,
+    totalChunks: parseInt(b.total_chunks || "0", 10),
+    embeddedChunks: parseInt(b.embedded_chunks || "0", 10), // 🛠️ په پوره کمال سره په سنيک_کېس اصلاح سو ترڅو سکرین سپین نه سي
+    queuedChunks: parseInt(b.queued_chunks || "0", 10),
     uploadedAt: new Date(b.uploaded_at).toLocaleDateString("ar"),
     status: b.status,
     category: b.category || "فقه",
@@ -242,7 +216,6 @@ export async function addAiRule(rule_text: string) {
   return res.json();
 }
 
-// 🛠️ دغه برخه بيخي په صحيح ډول اصلاح او بې‌خطا سوه چي کلايفايډ سي
 export async function updateAiRule(id: string, is_active: boolean) {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/rules/${id}`, {
@@ -272,4 +245,3 @@ async function readApiError(res: Response) {
     return `API error ${res.status}`;
   }
 }
-
