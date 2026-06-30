@@ -61,29 +61,6 @@ const headingFonts = [
   { name: "رقعة (Ruqaa)", value: '"Aref Ruqaa", serif' },
 ];
 
-const themes = [
-  { name: "زمردي شين", main: "#0f3d2e", light: "#14533f" },
-  { name: "شين", main: "#15803d", light: "#166534" },
-  { name: "شين آبي", main: "#0f766e", light: "#115e59" },
-  { name: "اسماني", main: "#0e7490", light: "#155e75" },
-  { name: "آبي", main: "#1d4ed8", light: "#1e40af" },
-  { name: "شين بحري", main: "#1e3a8a", light: "#172554" },
-  { name: "انډيګو", main: "#4338ca", light: "#3730a3" },
-  { name: "بنفش", main: "#6d28d9", light: "#5b21b6" },
-  { name: "ارغواني", main: "#7e22ce", light: "#6b21a8" },
-  { name: "تېز ګلابي", main: "#a21caf", light: "#86198f" },
-  { name: "ګلابي", main: "#be185d", light: "#9d174d" },
-  { name: "سره ګلابي", main: "#e11d48", light: "#be123c" },
-  { name: "سور", main: "#b91c1c", light: "#991b1b" },
-  { name: "نارنجي", main: "#c2410c", light: "#9a3412" },
-  { name: "تېز زېړ", main: "#d97706", light: "#b45309" },
-  { name: "سرو زرو", main: "#b08742", light: "#8a6a32" },
-  { name: "خړ", main: "#334155", light: "#1e293b" },
-  { name: "تور", main: "#111111", light: "#222222" },
-  { name: "قهوه يي", main: "#4a2c0f", light: "#381e08" },
-  { name: "شاهي سور", main: "#831843", light: "#500724" },
-];
-
 export default function FatwaRoom() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,7 +72,17 @@ export default function FatwaRoom() {
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>(initialSuggestedQuestions);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // 🔒 لومړی لوډ: د تاریخچې سره يو ځای د اډمن نوي تفصيلي رنګونه هم په اتومات ډول پر فضا بندوي
+  // 🔒 يوازي د دغې خوني د سټايلونو لپاره ځانګړي متغیرونه (Scope Isolated State)
+  const [siteFont, setSiteFont] = useState('"Cairo", "Noto Naskh Arabic", sans-serif');
+  const [headingFont, setHeadingFont] = useState('"Cairo Black", "Cairo", sans-serif');
+  const [themeMain, setThemeMain] = useState("#0f3d2e");
+  const [themeLight, setThemeLight] = useState("#14533f");
+  const [wallBg, setWallBg] = useState("transparent");
+  const [floorBg, setFloorBg] = useState("transparent");
+  const [boxBg, setBoxBg] = useState("");
+  const [btnBg, setBtnBg] = useState("");
+
+  // 🔒 لومړی لوډ: د تاريخچې او اډمن رنګونو سره يو ځای د فونټونو خوندي راوړل
   useEffect(() => {
     try {
       const savedLocalData = localStorage.getItem("my_fatwa_history");
@@ -108,16 +95,26 @@ export default function FatwaRoom() {
         setDynamicSuggestions(JSON.parse(savedSuggestions));
       }
 
-      // 🎨 د اډمن له خوا ټاکل سوي د ديوال، فرش، بکسونو او بټنونو دایمي سټایلونه لوډول
-      const savedWall = localStorage.getItem("mufti_bg_wall");
-      const savedFloor = localStorage.getItem("mufti_bg_floor");
-      const savedBox = localStorage.getItem("mufti_bg_box");
-      const savedBtn = localStorage.getItem("mufti_bg_btn");
+      // د فونټونو او رنګونو را لوډول
+      const sf = localStorage.getItem("mufti_font");
+      const hf = localStorage.getItem("mufti_heading_font");
+      if (sf) setSiteFont(sf);
+      if (hf) setHeadingFont(hf);
 
-      if (savedWall) document.documentElement.style.setProperty("--mufti-bg-wall", savedWall);
-      if (savedFloor) document.documentElement.style.setProperty("--mufti-bg-floor", savedFloor);
-      if (savedBox) document.documentElement.style.setProperty("--mufti-bg-box", savedBox);
-      if (savedBtn) document.documentElement.style.setProperty("--mufti-bg-btn", savedBtn);
+      const tm = localStorage.getItem("mufti_theme_main");
+      const tl = localStorage.getItem("mufti_theme_light");
+      if (tm) setThemeMain(tm);
+      if (tl) setThemeLight(tl);
+
+      const wBg = localStorage.getItem("mufti_bg_wall");
+      const fBg = localStorage.getItem("mufti_bg_floor");
+      const bBg = localStorage.getItem("mufti_bg_box");
+      const btn = localStorage.getItem("mufti_bg_btn");
+
+      if (wBg) setWallBg(wBg);
+      if (fBg) setFloorBg(fBg);
+      if (bBg) setBoxBg(bBg);
+      if (btn) setBtnBg(btn);
     } catch (e) {
       console.error("Local history read error:", e);
     }
@@ -132,7 +129,6 @@ export default function FatwaRoom() {
     
     try {
       const f = await askMufti(q);
-      
       const newId = crypto.randomUUID();
       const fullAnswer = f.answer; 
       
@@ -199,16 +195,14 @@ export default function FatwaRoom() {
     }
   };
 
+  // 🔒 د فونټ بدلولو نوې خپلواکه طريقه (بې له دي چي اډمن پينل ته زيان ورسوي)
   const applyFont = (variable: string, val: string, storageKey: string) => {
-    document.documentElement.style.setProperty(variable, val);
+    if (variable === "--site-font") {
+      setSiteFont(val);
+    } else if (variable === "--heading-font") {
+      setHeadingFont(val);
+    }
     localStorage.setItem(storageKey, val);
-  };
-
-  const applyTheme = (main: string, light: string) => {
-    document.documentElement.style.setProperty("--theme-main", main);
-    document.documentElement.style.setProperty("--theme-light", light);
-    localStorage.setItem("mufti_theme_main", main);
-    localStorage.setItem("mufti_theme_light", light);
   };
 
   const escapePdfText = (value: string) => {
@@ -223,9 +217,10 @@ export default function FatwaRoom() {
   const waitForPdfRender = () => new Promise((resolve) => setTimeout(resolve, 180));
 
   const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
-    const bodyFont = getComputedStyle(document.documentElement).getPropertyValue("--site-font").trim() || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
-    const headingFont = getComputedStyle(document.documentElement).getPropertyValue("--heading-font").trim() || bodyFont;
-    const themeColor = getComputedStyle(document.documentElement).getPropertyValue("--theme-main").trim() || "#0f3d2e";
+    // 🔒 PDF هم اوس له خپلو جلا متغیرونو څخه خطونه اخلي
+    const bodyF = siteFont || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
+    const headF = headingFont || bodyF;
+    const tColor = themeMain || "#0f3d2e";
 
     const question = escapePdfText(questionText || "");
     const answer = escapePdfText(fatwa.answer || "");
@@ -257,7 +252,7 @@ export default function FatwaRoom() {
       page.style.background = "#ffffff";
       page.style.color = "#111111";
       page.style.direction = "rtl";
-      page.style.fontFamily = bodyFont;
+      page.style.fontFamily = bodyF;
       page.style.overflow = "hidden";
 
       const content = document.createElement("div");
@@ -280,8 +275,8 @@ export default function FatwaRoom() {
       const title = document.createElement("h2");
       title.innerHTML = text;
       title.style.margin = "0 0 24px 0";
-      title.style.color = themeColor;
-      title.style.fontFamily = headingFont;
+      title.style.color = tColor;
+      title.style.fontFamily = headF;
       title.style.fontSize = "29px";
       title.style.fontWeight = "900";
       title.style.lineHeight = "1.45";
@@ -295,7 +290,7 @@ export default function FatwaRoom() {
       p.style.color = "#111111";
       p.style.direction = "rtl";
       p.style.textAlign = "right";
-      p.style.fontFamily = bodyFont;
+      p.style.fontFamily = bodyF;
       p.style.fontSize = "22px";
       p.style.lineHeight = isQ ? "2.05" : "2.08";
       return p;
@@ -349,22 +344,29 @@ export default function FatwaRoom() {
   };
   
   return (
-    // 🎨 د اډمن لخوا د ټاکل شوي دایمي فرش (Floor BG) متحرک رنګول
-    <div style={{ background: "var(--mufti-bg-floor, transparent)", minHeight: "100vh" }}>
+    // 🔒 دلته ټوله خونه په خپلو ځانګړو متغیرونو کي نغښتل سوې ده ترڅو نورو ته سرايت ونه کړي
+    <div style={{ 
+      '--site-font': siteFont, 
+      '--heading-font': headingFont, 
+      '--theme-main': themeMain, 
+      '--theme-light': themeLight,
+      fontFamily: siteFont,
+      background: floorBg, 
+      minHeight: "100vh" 
+    } as React.CSSProperties}>
       <div>
         <Hero onAsk={scrollToAsk} />
       </div>
 
-      {/* 🎨 د اډمن لخوا د ټاکل شوي دایمي ديوال (Wall BG) متحرک رنګول */}
-      <div className="mx-auto max-w-5xl px-6 py-10" style={{ background: "var(--mufti-bg-wall, transparent)" }}>
+      <div className="mx-auto max-w-5xl px-6 py-10" style={{ background: wallBg }}>
         
         <div className="mb-8">
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className="flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-bold shadow-sm transition-all hover:shadow-md border border-amber-900/10"
-            style={{ color: "var(--theme-main, #0f3d2e)" }}
+            style={{ color: themeMain }}
           >
-            🎨 {showSettings ? "تنظيمات پټ کړی" : "د پاڼي ښکلا او تنظيمات (فونټ او رنګ)"}
+            🎨 {showSettings ? "تنظيمات پټ کړی" : "د پاڼي د خطونو تنظيمات وټاکی"}
           </button>
 
           {showSettings && (
@@ -373,27 +375,19 @@ export default function FatwaRoom() {
                 <h4 className="mb-3 text-sm font-bold text-amber-900">۱. د عام متن فونټ وټاکی:</h4>
                 <div className="flex flex-wrap gap-2">
                   {bodyFonts.map(f => (
-                    <button key={f.name} onClick={() => applyFont("--site-font", f.value, "mufti_font")} className="rounded-xl border border-amber-900/10 bg-amber-50/50 px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100" style={{ fontFamily: f.value, color: "var(--theme-main)" }}>
+                    <button key={f.name} onClick={() => applyFont("--site-font", f.value, "mufti_font")} className="rounded-xl border border-amber-900/10 bg-amber-50/50 px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100" style={{ fontFamily: f.value, color: themeMain }}>
                       {f.name}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="mb-6">
+              <div className="mb-2">
                 <h4 className="mb-3 text-sm font-bold text-amber-900">۲. د عنوانونو فونټ وټاکی:</h4>
                 <div className="flex flex-wrap gap-2">
                   {headingFonts.map(f => (
-                    <button key={f.name} onClick={() => applyFont("--heading-font", f.value, "mufti_heading_font")} className="rounded-xl border border-amber-900/10 bg-amber-50/50 px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100" style={{ fontFamily: f.value, color: "var(--theme-main)" }}>
+                    <button key={f.name} onClick={() => applyFont("--heading-font", f.value, "mufti_heading_font")} className="rounded-xl border border-amber-900/10 bg-amber-50/50 px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100" style={{ fontFamily: f.value, color: themeMain }}>
                       {f.name}
                     </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <h4 className="mb-3 text-sm font-bold text-amber-900">۳. د سايټ رنګ وټاکی:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {themes.map(t => (
-                    <button key={t.name} onClick={() => applyTheme(t.main, t.light)} className="h-8 w-8 rounded-full border border-white shadow-md transition-all hover:scale-110" style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }} title={t.name} />
                   ))}
                 </div>
               </div>
@@ -401,8 +395,7 @@ export default function FatwaRoom() {
           )}
         </div>
 
-        {/* 🎨 د اډمن لخوا د ټاکل شوي دایمي بکس (Card BG) متحرک رنګول */}
-        <div ref={askBoxRef} className="fatwa-card rounded-3xl p-6 md:p-8" style={{ backgroundColor: "var(--mufti-bg-box)" }}>
+        <div ref={askBoxRef} className="fatwa-card rounded-3xl p-6 md:p-8" style={{ backgroundColor: boxBg }}>
           <div className="mb-3 flex items-center justify-between">
             <label className="text-sm font-bold text-emerald-900">ستاسي فقهي پوښتنه:</label>
             {history.length > 0 && (
@@ -421,15 +414,14 @@ export default function FatwaRoom() {
               placeholder="د بېلګي په توګه: د روژي د نيت وخت کوم دی..."
               rows={3}
               className="flex-1 resize-none rounded-2xl border border-amber-900/20 bg-white/80 px-4 py-3 text-base placeholder:text-amber-900/40 focus:outline-none focus:ring-2 focus:ring-amber-900/20"
-              style={{ color: "var(--theme-main, #0f3d2e)" }}
+              style={{ color: themeMain }}
               dir="rtl"
             />
-            {/* 🎨 د اډمن لخوا د ټاکل شوي دایمي بټن (Button Color) متحرک رنګول */}
             <button
               onClick={() => ask(question)}
               disabled={loading || !question.trim()}
               className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: "var(--mufti-bg-btn, linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f)))" }}
+              style={{ background: btnBg || `linear-gradient(135deg, ${themeMain}, ${themeLight})` }}
             >
               {loading ? "د لټون په حال کي…" : "پوښتنه وکړی"}
             </button>
@@ -458,7 +450,7 @@ export default function FatwaRoom() {
         )}
 
         {loading && (
-          <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: "var(--theme-main, #0f3d2e)" }}>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-amber-900/15 bg-white/60 p-6" style={{ color: themeMain }}>
             <div className="text-sm font-bold">
               په معتبرو فقهي کتابونو کي لټون روان دی…
             </div>
@@ -484,7 +476,7 @@ export default function FatwaRoom() {
                   <button 
                     onClick={() => handlePrintPDF(h.fatwa, h.question)}
                     className="flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-xs font-bold shadow-sm border border-amber-900/10 transition-all hover:bg-amber-50 hover:shadow-md"
-                    style={{ color: "var(--theme-main, #0f3d2e)" }}
+                    style={{ color: themeMain }}
                   >
                     📄 يوازي دا فتوا PDF کښته کړی
                   </button>
