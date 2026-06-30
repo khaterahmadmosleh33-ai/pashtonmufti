@@ -19,7 +19,7 @@ type HistoryItem = {
 const initialSuggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
   "د جمعې لمانځه شرطونه کوم دي؟",
-  "په زکات کي د نصاب اندازه څونه ده？",
+  "په زکات کي د نصاب اندازه څونه ده؟",
   "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
 
@@ -95,7 +95,7 @@ export default function FatwaRoom() {
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>(initialSuggestedQuestions);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // 🔒 لومړی لوډ: د تاريخچې تر څنګ، وروستۍ اړونده پوښتني هم د موبايل له دایمي حافظې څخه را لولي چي غيب نه سي
+  // 🔒 لومړی لوډ: د تاریخچې سره يو ځای د اډمن نوي تفصيلي رنګونه هم په اتومات ډول پر فضا بندوي
   useEffect(() => {
     try {
       const savedLocalData = localStorage.getItem("my_fatwa_history");
@@ -103,11 +103,21 @@ export default function FatwaRoom() {
         setHistory(JSON.parse(savedLocalData));
       }
       
-      // ستا د خوښي موافق د نويو پوښتنو بېرته راوړل تر څو د پاڼي په اړولو غيب نه سي
       const savedSuggestions = localStorage.getItem("my_dynamic_suggestions");
       if (savedSuggestions) {
         setDynamicSuggestions(JSON.parse(savedSuggestions));
       }
+
+      // 🎨 د اډمن له خوا ټاکل سوي د ديوال، فرش، بکسونو او بټنونو دایمي سټایلونه لوډول
+      const savedWall = localStorage.getItem("mufti_bg_wall");
+      const savedFloor = localStorage.getItem("mufti_bg_floor");
+      const savedBox = localStorage.getItem("mufti_bg_box");
+      const savedBtn = localStorage.getItem("mufti_bg_btn");
+
+      if (savedWall) document.documentElement.style.setProperty("--mufti-bg-wall", savedWall);
+      if (savedFloor) document.documentElement.style.setProperty("--mufti-bg-floor", savedFloor);
+      if (savedBox) document.documentElement.style.setProperty("--mufti-bg-box", savedBox);
+      if (savedBtn) document.documentElement.style.setProperty("--mufti-bg-btn", savedBtn);
     } catch (e) {
       console.error("Local history read error:", e);
     }
@@ -121,13 +131,11 @@ export default function FatwaRoom() {
     setQuestion(q);
     
     try {
-      // له بېک انډ څخه د ځواب او اړونده پوښتنو يو ځای راوړل
       const f = await askMufti(q);
       
       const newId = crypto.randomUUID();
-      const fullAnswer = f.answer; // اصلي بشپړ ځواب
+      const fullAnswer = f.answer; 
       
-      // لومړی کارډ خالي جوړوو چي توري يو يو پکي مېشته سي
       setHistory((h) => [
         { id: newId, question: q, fatwa: { ...f, answer: "" }, at: Date.now() },
         ...h,
@@ -138,7 +146,7 @@ export default function FatwaRoom() {
       }, 100);
 
       let index = 0;
-      const speed = 1; // په يوه ځل څو توري وليکي
+      const speed = 1; 
       
       const typingInterval = setInterval(() => {
         index += speed;
@@ -151,7 +159,6 @@ export default function FatwaRoom() {
         if (index >= fullAnswer.length) {
           clearInterval(typingInterval);
           
-          // 🔥 د اې آی د ځواب تر خلاصېدو وروسته چټکي پوښتني اتومات بدليږي او په حافظه کي د تل لپاره لاک کيږي
           if (f.suggestedQuestions && f.suggestedQuestions.length > 0) {
             setDynamicSuggestions(f.suggestedQuestions);
             try {
@@ -161,11 +168,10 @@ export default function FatwaRoom() {
             }
           }
 
-          // سيمه ييزه حافظه کي د شخصي حريم ساتل
           try {
             const finalItem: HistoryItem = { id: newId, question: q, fatwa: f, at: Date.now() };
             const currentLocal = JSON.parse(localStorage.getItem("my_fatwa_history") || "[]");
-            const updatedLocal = [finalItem, ...currentLocal].slice(0, 25); // حد اعظمي ۲۵ دانې ساتي
+            const updatedLocal = [finalItem, ...currentLocal].slice(0, 25); 
             localStorage.setItem("my_fatwa_history", JSON.stringify(updatedLocal));
           } catch (storageErr) {
             console.error("LocalStorage write error:", storageErr);
@@ -184,13 +190,12 @@ export default function FatwaRoom() {
     askBoxRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  // د خپل موبايل د شخصي تاريخچې او خوندي سوو پوښتنو پاکول
   const clearHistory = () => {
     if (confirm("د پردي ښکاره تاريخ پاکوی؟ اصلي سرور لاګ نه ړنګيږي.")) {
       setHistory([]);
       localStorage.removeItem("my_fatwa_history");
-      localStorage.removeItem("my_dynamic_suggestions"); // 🔒 د متحرکو پوښتنو د حافظې پاکول
-      setDynamicSuggestions(initialSuggestedQuestions); // بېرته اصلي حالت ته راګرځي
+      localStorage.removeItem("my_dynamic_suggestions"); 
+      setDynamicSuggestions(initialSuggestedQuestions); 
     }
   };
 
@@ -344,12 +349,14 @@ export default function FatwaRoom() {
   };
   
   return (
-    <>
+    // 🎨 د اډمن لخوا د ټاکل شوي دایمي فرش (Floor BG) متحرک رنګول
+    <div style={{ background: "var(--mufti-bg-floor, transparent)", minHeight: "100vh" }}>
       <div>
         <Hero onAsk={scrollToAsk} />
       </div>
 
-      <div className="mx-auto max-w-5xl px-6 py-10">
+      {/* 🎨 د اډمن لخوا د ټاکل شوي دایمي ديوال (Wall BG) متحرک رنګول */}
+      <div className="mx-auto max-w-5xl px-6 py-10" style={{ background: "var(--mufti-bg-wall, transparent)" }}>
         
         <div className="mb-8">
           <button 
@@ -394,7 +401,8 @@ export default function FatwaRoom() {
           )}
         </div>
 
-        <div ref={askBoxRef} className="fatwa-card rounded-3xl p-6 md:p-8">
+        {/* 🎨 د اډمن لخوا د ټاکل شوي دایمي بکس (Card BG) متحرک رنګول */}
+        <div ref={askBoxRef} className="fatwa-card rounded-3xl p-6 md:p-8" style={{ backgroundColor: "var(--mufti-bg-box)" }}>
           <div className="mb-3 flex items-center justify-between">
             <label className="text-sm font-bold text-emerald-900">ستاسي فقهي پوښتنه:</label>
             {history.length > 0 && (
@@ -410,23 +418,23 @@ export default function FatwaRoom() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) ask(question);
               }}
-              placeholder="د بېلګي په توګه: د روژي د نيت وخت کوم دی؟"
+              placeholder="د بېلګي په توګه: د روژي د نيت وخت کوم دی..."
               rows={3}
               className="flex-1 resize-none rounded-2xl border border-amber-900/20 bg-white/80 px-4 py-3 text-base placeholder:text-amber-900/40 focus:outline-none focus:ring-2 focus:ring-amber-900/20"
               style={{ color: "var(--theme-main, #0f3d2e)" }}
               dir="rtl"
             />
+            {/* 🎨 د اډمن لخوا د ټاکل شوي دایمي بټن (Button Color) متحرک رنګول */}
             <button
               onClick={() => ask(question)}
               disabled={loading || !question.trim()}
               className="self-end rounded-2xl px-8 py-3 font-bold text-amber-100 shadow-lg transition-all hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: "linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f))" }}
+              style={{ background: "var(--mufti-bg-btn, linear-gradient(135deg, var(--theme-main, #0f3d2e), var(--theme-light, #14533f)))" }}
             >
               {loading ? "د لټون په حال کي…" : "پوښتنه وکړی"}
             </button>
           </div>
 
-          {/* 📊 د کياستي او اړونده پوښتنو ننداره چي د براوزر په حافظه کي لاک سوې ده */}
           <div className="mt-5 flex flex-col gap-2">
             <span className="text-xs font-bold text-amber-900/70">چټکي او اړونده پوښتني:</span>
             <div className="flex flex-wrap gap-2">
@@ -487,6 +495,6 @@ export default function FatwaRoom() {
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }
