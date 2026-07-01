@@ -1,4 +1,4 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د ټولو خونو د مدغم کولو قفل سوې نسخه.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د ټولو خونو د مدګم کولو قفل سوې نسخه.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
@@ -330,7 +330,7 @@ export default function AdminPanel() {
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" />
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" style={{ animationDelay: "0.2s" }} />
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" style={{ animationDelay: "0.4s" }} />
-        <span className="mr-3 text-sm">د اډمن ډيټا راپورته کول…</span>
+        <span className="mr-3 text-sm">د اډمن ډېټا راپورته کول…</span>
       </div>
     );
   }
@@ -501,8 +501,8 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
 
       <div className="grid gap-4 md:grid-cols-3">
         <InfoCard title="د Worker حالت" main={<span className="flex items-center gap-2"><span className="pulse-dot h-2.5 w-2.5 rounded-full bg-green-500" />{stats.workerStatus}</span>} sub={`وروستی ويکټور: ${stats.lastEmbeddedAt}`} />
-        <InfoCard title="د Rate Limit" main={`په ثانيه کي ${stats.rateLimit} غوښتني`} sub="د Gemini د ۴۲۹ ايرر د مخنيوي لپاره" />
-        <InfoCard title="د Backoff تګلاره" main={stats.backoffStrategy} sub="په هر ناکامۍ ځنډ دوه برابره کيږي" small />
+        <InfoCard title="د Rate Limit" main={`په ثانيه کي ${stats.rateLimit} غوښتني`} sub="د Gemini د ۴۲۹ خطا د مخنيوي لپاره" />
+        <InfoCard title="د Backoff تګلاره" main={stats.backoffStrategy} sub="په هره ناکامي کي ځنډ دوه برابره کيږي" small />
       </div>
 
       <div className="rounded-3xl border border-amber-900/15 bg-white/40 p-6">
@@ -602,7 +602,7 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
     try {
       const pId = parentId ? parseInt(parentId, 10) : null;
       await addCategory(newCategory, pId, sortOrder);
-      setNewCategory(""); setNewCategory(""); setParentId(""); setSortOrder(0);
+      setNewCategory(""); setParentId(""); setSortOrder(0);
       loadCategories();
     } catch (e) { alert("د المارۍ په ثبتولو کي ستونزه پېښه سوه."); }
   };
@@ -733,7 +733,7 @@ function AiRulesView() {
         </div>
         <div>
           <h4 className="mb-4 text-lg font-bold text-emerald-900">موجوده فعال او غير فعال قوانين:</h4>
-          {loading ? ( <div className="text-sm text-emerald-700">قوانين راټوليږي...</div> ) : rules.length === 0 ? ( <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">تر اوسه کوم قانون نه دی ثبت سوی.</div> ) : (
+          {loading ? ( <div className="text-sm text-emerald-700">قوانين راټوليږي...</div> ) : rules.length === 0 ? ( <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">تر اوسه کدام قانون نه دی ثبت سوی.</div> ) : (
             <div className="space-y-3">
               {rules.map((rule, index) => (
                 <div key={rule.id} className={`flex flex-col justify-between gap-4 rounded-xl border p-4 shadow-sm transition-all md:flex-row md:items-center ${rule.is_active ? 'border-emerald-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-75'}`}>
@@ -759,10 +759,9 @@ function AiRulesView() {
 }
 
 // ============================================================
-// ⚙️ ستا د خوښي پوره پراخه سوې او سرشاره نسخه (Part 4) — د ديوال او شل واړو خطونو پيوستون
+// ⚙️ د سایټ تنظیمات — د ډېټابېس له لارې په پوره کمال او ژوندي بڼه متحرک سوی
 // ============================================================
 function SettingsView() {
-  // 🔒 ستا د نندارې خوني شل واړه بډايه خطونه دلته په بشپړ ډول مېشته سول
   const bodyFonts = [
     { name: "زرين (Zareen)", value: '"Zareen", "Noto Naskh Arabic", sans-serif' },
     { name: "مرزا (Mirza)", value: '"Mirza", "Noto Naskh Arabic", sans-serif' },
@@ -786,7 +785,6 @@ function SettingsView() {
     { name: "کتيبه (Katibeh)", value: '"Katibeh", cursive' },
   ];
 
-  // 🔒 د لوړو عنوانونو دولس واړه پاخه خطونه په پوره کمال سره
   const headingFonts = [
     { name: "امير (Amir Bold)", value: '"Amir Bold", "Amiri", serif' },
     { name: "لاله‌زار (Lalezar)", value: '"Lalezar", cursive' },
@@ -825,25 +823,59 @@ function SettingsView() {
     { name: "شاهي سور", main: "#831843", light: "#500724" },
   ];
 
-  // 🔒 د مفتي خانې خپلواک سټايلونه (پر اډمن اغېزه نه کوي)
-  const handleMuftiBodyFont = (val: string) => {
+  // 🔒 په ډېټابېس کي د ډيفالټونو ژوندی حالت
+  const [dbSettings, setDbSettings] = useState<any>(null);
+
+  useEffect(() => {
+    const baseUrl = import.meta.env.VITE_API_BASE || "";
+    fetch(`${baseUrl}/api/global-settings`)
+      .then(res => res.json())
+      .then(data => {
+        if (data) setDbSettings(data);
+      })
+      .catch(e => console.error("ډېټابېس څخه د تنظيماتو د راوړلو پر مهال خطا پېښه سوه:", e));
+  }, []);
+
+  // 🔒 ډېټابېس ته د نوي امر د قفل کولو نوي ځواکمن تابع
+  const saveToDb = async (updatedFields: any) => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_BASE || "";
+      await fetch(`${baseUrl}/api/global-settings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-token": localStorage.getItem("mufti_token") || ""
+        },
+        body: JSON.stringify(updatedFields)
+      });
+    } catch (e) {
+      console.error("ډېټابېس ته د معلوماتو لېږلو پر مهال خطا پېښه سوه:", e);
+    }
+  };
+
+  const handleMuftiBodyFont = async (val: string) => {
     document.documentElement.style.setProperty("--site-font", val);
     localStorage.setItem("mufti_font", val);
+    await saveToDb({ default_site_font: val });
+    setDbSettings((prev: any) => ({ ...prev, default_site_font: val }));
   };
 
-  const handleMuftiHeadingFont = (val: string) => {
+  const handleMuftiHeadingFont = async (val: string) => {
     document.documentElement.style.setProperty("--heading-font", val);
     localStorage.setItem("mufti_heading_font", val);
+    await saveToDb({ default_heading_font: val });
+    setDbSettings((prev: any) => ({ ...prev, default_heading_font: val }));
   };
 
-  const handleMuftiTheme = (main: string, light: string) => {
+  const handleMuftiTheme = async (main: string, light: string) => {
     document.documentElement.style.setProperty("--theme-main", main);
     document.documentElement.style.setProperty("--theme-light", light);
     localStorage.setItem("mufti_theme_main", main);
     localStorage.setItem("mufti_theme_light", light);
+    await saveToDb({ theme_main: main, theme_light: light });
+    setDbSettings((prev: any) => ({ ...prev, theme_main: main, theme_light: light }));
   };
 
-  // 🔒 د اډمن پينل د خپل خط او رنګ بدلول (يوه ذره پر مفتي خونه اغېزه نه کوي)
   const handleAdminFont = (val: string) => {
     document.documentElement.style.setProperty("--admin-font", val);
     localStorage.setItem("admin_font", val);
@@ -867,39 +899,68 @@ function SettingsView() {
       {/* د مفتي خانې د عامه پاڼې پوره واکونه */}
       <div className="fatwa-card rounded-2xl p-8 border border-emerald-950/10 bg-white">
         <h3 className="mb-2 text-2xl font-bold text-emerald-900">🕌 د مفتي خانې عمومي بڼه او ډيفالټ خطونه</h3>
-        <p className="mb-6 text-xs text-amber-900/70">له دغه ځایه چي هره کلمه وټاکل سي، د نندارې په خونه کي د عامو خلګو د ډيفالټ په توګه تنظيميږي.</p>
+        <p className="mb-6 text-xs text-amber-900/70">له دغه ځایه چي هره کلمه وټاکل سي، په ډېټابېس کي ثبتیږي او د نندارې په خونه کي د عامو خلګو د ډيفالټ په توګه تنظيميږي.</p>
         
         <div className="mb-6">
           <label className="mb-3 block text-sm font-bold text-amber-900">۱. د مفتي خانې د عام متن خط (Body Font) — (۲۰ واړه واکونه):</label>
           <div className="flex flex-wrap gap-2">
-            {bodyFonts.map(f => (
-              <button key={f.name} onClick={() => handleMuftiBodyFont(f.value)} className="rounded-xl border border-amber-900/10 bg-amber-50/40 px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100" style={{ fontFamily: f.value }}>
-                {f.name}
-              </button>
-            ))}
+            {bodyFonts.map(f => {
+              const isSelected = dbSettings?.default_site_font === f.value;
+              return (
+                <button 
+                  key={f.name} 
+                  onClick={() => handleMuftiBodyFont(f.value)} 
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100 ${
+                    isSelected ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-600/20' : 'border-amber-900/10 bg-amber-50/40'
+                  }`} 
+                  style={{ fontFamily: f.value }}
+                >
+                  {f.name} {isSelected && "🎯"}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="mb-6">
           <label className="mb-3 block text-sm font-bold text-amber-900">۲. د مفتي خانې د لوړو عنوانونو خط (Heading Font) — (۱۲ واړه واکونه):</label>
           <div className="flex flex-wrap gap-2">
-            {headingFonts.map(f => (
-              <button key={f.name} onClick={() => handleMuftiHeadingFont(f.value)} className="rounded-xl border border-amber-900/10 bg-amber-50/40 px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100" style={{ fontFamily: f.value }}>
-                {f.name}
-              </button>
-            ))}
+            {headingFonts.map(f => {
+              const isSelected = dbSettings?.default_heading_font === f.value;
+              return (
+                <button 
+                  key={f.name} 
+                  onClick={() => handleMuftiHeadingFont(f.value)} 
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all hover:bg-amber-100 ${
+                    isSelected ? 'border-emerald-600 bg-emerald-50 text-emerald-900 ring-2 ring-emerald-600/20' : 'border-amber-900/10 bg-amber-50/40'
+                  }`} 
+                  style={{ fontFamily: f.value }}
+                >
+                  {f.name} {isSelected && "🎯"}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         <div className="mb-6">
           <label className="mb-4 block text-sm font-bold text-amber-900">۳. د مفتي خانې اصلي رنګونه (۲۰ بډایه رنګونه):</label>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            {themes.map(t => (
-              <button key={t.name} onClick={() => handleMuftiTheme(t.main, t.light)} className="flex flex-col items-center gap-2 rounded-xl border border-amber-900/10 bg-amber-50/10 p-3 text-center transition-all hover:scale-105">
-                <div className="h-8 w-8 rounded-full shadow-inner" style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }} />
-                <span className="text-[11px] font-bold text-amber-950">{t.name}</span>
-              </button>
-            ))}
+            {themes.map(t => {
+              const isSelected = dbSettings?.theme_main === t.main;
+              return (
+                <button 
+                  key={t.name} 
+                  onClick={() => handleMuftiTheme(t.main, t.light)} 
+                  className={`flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-all hover:scale-105 ${
+                    isSelected ? 'border-emerald-600 bg-emerald-50/30 ring-2 ring-emerald-600/20' : 'border-amber-900/10 bg-amber-50/10'
+                  }`}
+                >
+                  <div className="h-8 w-8 rounded-full shadow-inner" style={{ background: `linear-gradient(135deg, ${t.main}, ${t.light})` }} />
+                  <span className="text-[11px] font-bold text-amber-950">{t.name} {isSelected && "🎯"}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -935,7 +996,7 @@ function SettingsView() {
       {/* د اډمن پينل د خپل مېز خپلواکه بڼه */}
       <div className="fatwa-card rounded-2xl p-8 border border-amber-950/10 bg-amber-50/10">
         <h3 className="mb-2 text-2xl font-bold text-emerald-950">⚙️ د اډمن پينل د خپل مېز مستقل سټايلونه</h3>
-        <p className="mb-6 text-xs text-amber-900/70">له دغه ځایه يوه کلمه هم پر عامه ننداره اغېزه نه کوي، يوازي ستا د اډمن پينل مېز په کمال باسي.</p>
+        <p className="mb-6 text-xs text-amber-900/70">له دغه ځایه يوه کلمه هم پر عامه ننداره اغېزه ne کوي، يوازي ستا د اډمن پينل مېز په کمال باسي.</p>
         
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
@@ -999,7 +1060,7 @@ function StatusBadge({ status }: { status: string }) {
     complete: { label: "بشپړ سوی", cls: "bg-green-100 text-green-800 ring-green-300" },
     queued: { label: "په قطار کي", cls: "bg-amber-100 text-amber-800 ring-amber-300" },
     paused: { label: "ودرول سوی", cls: "bg-gray-100 text-gray-800 ring-gray-300" },
-    failed: { label: "نا کام سوی", cls: "bg-red-100 text-red-800 ring-red-300" },
+    failed: { label: "ناکام سوی", cls: "bg-red-100 text-red-800 ring-red-300" },
   };
   const s = map[status] || map.queued;
   return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-bold ring-1 ${s.cls}`}>{s.label}</span>;
