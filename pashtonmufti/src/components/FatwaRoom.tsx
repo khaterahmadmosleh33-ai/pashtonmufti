@@ -18,7 +18,7 @@ type HistoryItem = {
 // د لومړي ځل فرعي پوښتنې (کله چي لا هيڅ پوښتنه نه وي سوې)
 const initialSuggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
-  "د جمعې لمانځه شرطونه کوم دي؟",
+  "د جمعې لمانځه شرطونه کوم دي",
   "په زکات کي د نصاب اندازه څونه ده؟",
   "د مسافر د لمانځه قصر شرعي حد څه دی؟",
 ];
@@ -95,12 +95,29 @@ export default function FatwaRoom() {
         setDynamicSuggestions(JSON.parse(savedSuggestions));
       }
 
-      // د فونټونو او رنګونو را لوډول
-      const sf = localStorage.getItem("mufti_font");
-      const hf = localStorage.getItem("mufti_heading_font");
-      if (sf) setSiteFont(sf);
-      if (hf) setHeadingFont(hf);
+      // ۱. لومړی چک کول چي ایا دغه ځانګړي کاروونکي خپل د خوښي فونټ بدل کړی دی که نه
+      const userFont = localStorage.getItem("mufti_user_font_override");
+      const userHeadingFont = localStorage.getItem("mufti_user_heading_font_override");
 
+      if (userFont) setSiteFont(userFont);
+      if (userHeadingFont) setHeadingFont(userHeadingFont);
+
+      // ۲. که کاروونکي پخپله خوښه فونټ نه وي بدل کړی، له ډېټابېس (اډمن ډيفالټونو) څخه غوښتنه کوو
+      if (!userFont || !userHeadingFont) {
+        fetch(`${import.meta.env.VITE_API_BASE || ''}/api/global-settings`)
+          .then(res => res.json())
+          .then(data => {
+            if (data) {
+              if (!userFont && data.default_site_font) setSiteFont(data.default_site_font);
+              if (!userHeadingFont && data.default_heading_font) setHeadingFont(data.default_heading_font);
+              if (data.theme_main) setThemeMain(data.theme_main);
+              if (data.theme_light) setThemeLight(data.theme_light);
+            }
+          })
+          .catch(e => console.error("ډېټابېس څخه د ډيفالټونو په لوډولو کي ستونزه پېښه سوه:", e));
+      }
+
+      // د نورو عمومي رنګونو او پس منظرونو راوړل
       const tm = localStorage.getItem("mufti_theme_main");
       const tl = localStorage.getItem("mufti_theme_light");
       if (tm) setThemeMain(tm);
@@ -195,12 +212,14 @@ export default function FatwaRoom() {
     }
   };
 
-  // 🔒 د فونټ بدلولو نوې خپلواکه طريقه (بې له دي چي اډمن پينل ته زيان ورسوي)
+  // 🔒 د فونټ بدلولو نوې خپلواکه طريقه (يوازې د دغه مشخص کاروونکي په موبايل کي قفل کيږي)
   const applyFont = (variable: string, val: string, storageKey: string) => {
     if (variable === "--site-font") {
       setSiteFont(val);
+      localStorage.setItem("mufti_user_font_override", val); // د کاروونکي انفرادي انتخاب
     } else if (variable === "--heading-font") {
       setHeadingFont(val);
+      localStorage.setItem("mufti_user_heading_font_override", val); // د کاروونکي انفرادي انتخاب
     }
     localStorage.setItem(storageKey, val);
   };
@@ -217,7 +236,6 @@ export default function FatwaRoom() {
   const waitForPdfRender = () => new Promise((resolve) => setTimeout(resolve, 180));
 
   const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
-    // 🔒 PDF هم اوس له خپلو جلا متغیرونو څخه خطونه اخلي
     const bodyF = siteFont || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
     const headF = headingFont || bodyF;
     const tColor = themeMain || "#0f3d2e";
@@ -344,7 +362,6 @@ export default function FatwaRoom() {
   };
   
   return (
-    // 🔒 دلته ټوله خونه په خپلو ځانګړو متغیرونو کي نغښتل سوې ده ترڅو نورو ته سرايت ونه کړي
     <div style={{ 
       '--site-font': siteFont, 
       '--heading-font': headingFont, 
