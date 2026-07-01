@@ -9,7 +9,8 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 
-import pool from "./db/pool.js"; // د ډېټابېس د پول راغوښتل د نوي متحرک پُل لپاره
+// 🎯 د ډېټابېس پول مي د قوسونو په ننه کي راوست ترڅو د رېنډر د نښتلو خطا د تل لپاره ورکه سي
+import { pool } from "./db/pool.js"; 
 import askRouter from "./routes/ask.js";
 import booksRouter from "./routes/books.js";
 import adminRouter from "./routes/admin.js";
