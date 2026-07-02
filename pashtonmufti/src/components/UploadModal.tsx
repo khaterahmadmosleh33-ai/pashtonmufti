@@ -1,7 +1,7 @@
-// د کتاب اپلوډ موډال — د اډمن پينل څخه پيل کيږي.
+// د کتاب اپلوډ موډال — د اډمن پينل څخه پيل کيږي (نسخهٔ کاملاً مصفا او ضد کرېش).
 
 import { useState, useEffect } from "react";
-import { uploadBook, isLiveBackend, fetchCategories } from "../lib/api"; // fetchCategories به په api.ts کي جوړوو
+import { uploadBook, isLiveBackend, fetchCategories } from "../lib/api";
 
 type Props = {
   open: boolean;
@@ -30,19 +30,25 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  // د سوپابېس څخه د فنونو (الماريو) راوستل
+  // د سوپابېس څخه د فنونو (الماريو) په پوره کمال او شرطي توګه راوستل
   useEffect(() => {
     async function loadCategories() {
       try {
         if (typeof fetchCategories === 'function') {
           const cats = await fetchCategories();
-          if (cats && cats.length > 0) {
+          // 🔒 دفاعي چک: ډاډ ترلاسه کوو چي ډاټا راغلې او ارې (Array) ده تر څو پاڼه مړه نه سي
+          if (cats && Array.isArray(cats) && cats.length > 0) {
             setCategories(cats.map((c: any) => c.name));
             setForm(p => ({ ...p, category: cats[0].name }));
+          } else if (cats && cats.categories && Array.isArray(cats.categories)) {
+            setCategories(cats.categories.map((c: any) => c.name));
+            if (cats.categories.length > 0) {
+              setForm(p => ({ ...p, category: cats.categories[0].name }));
+            }
           }
         }
       } catch (e) {
-        console.error("د الماريو په راوستلو کي ستونزه", e);
+        console.error("د الماريو په راوستلو کي ستونزه پېښه سوه:", e);
       }
     }
     if (open) loadCategories();
@@ -53,17 +59,38 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
   const update = (k: keyof typeof form, v: any) =>
     setForm((p) => ({ ...p, [k]: v }));
 
-  const handleFile = async (file: File | null) => {
-    setMsg(null);
-    setSelectedFile(file);
-    if (!file) return;
-    if (!file.type.includes("text") && !file.name.endsWith(".txt")) {
-      setMsg({ kind: "err", text: "مهرباني وکړی يوازي .txt يا text/plain فايل پورته کړی." });
-      setSelectedFile(null);
-      return;
+  // 🔒 د فايل د چوز کولو پر مهال د کرېش او مړ کیدو د مخنيوي پياوړی ماشين
+  const handleFile = (file: File | null) => {
+    try {
+      setMsg(null);
+      setSelectedFile(file);
+      if (!file) return;
+
+      // که د فايل ټایپ خالي وي یا .txt نه وي، په سمه توګه يې نیسو
+      const isTxt = file.name.toLowerCase().endsWith('.txt');
+      if (file.type && !file.type.includes("text") && !isTxt) {
+        setMsg({ kind: "err", text: "مهرباني وکړی يوازي .txt يا text/plain فايل پورته کړی." });
+        setSelectedFile(null);
+        return;
+      }
+
+      // 🛡️ د بې ځایه الووتلو پر ځای له FileReader څخه کار اخلو ترڅو سټېټ ثابت پاتې سي
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result;
+        if (typeof result === "string") {
+          update("text", result);
+        } else {
+          setMsg({ kind: "err", text: "د فايل متن په سمه توګه ونه لوستل سو." });
+        }
+      };
+      reader.onerror = () => {
+        setMsg({ kind: "err", text: "د فايل په لوستلو کي تخنيکي ستونزه پېښه سوه." });
+      };
+      reader.readAsText(file);
+    } catch (err: any) {
+      setMsg({ kind: "err", text: "د فايل د انتخاب پر مهال خطا پېښه سوه: " + err.message });
     }
-    const text = await file.text();
-    update("text", text);
   };
 
   const submit = async () => {
@@ -79,13 +106,11 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
 
     setBusy(true);
     try {
-      const r = await uploadBook({ ...form, file: selectedFile });
+      await uploadBook({ ...form, file: selectedFile });
       
-      // دلته سيسټم سکرين نه بندوي، تر څو بل کتاب پورته کړای سې
       setMsg({ kind: "ok", text: "کتاب په برياليتوب سره قطار ته واچول سو! اوس کولای سی بل کتاب پورته کړی." });
       onUploaded();
       
-      // فورمه خالي کوو، خو مصنف، المارۍ او فولډر نوم ساتو تر څو د بل ټوک اپلوډ اسانه وي
       setForm((p) => ({
         ...p,
         title: "", edition: "", defaultVolume: "", text: "", customRule: "",
@@ -127,7 +152,6 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
           <Field label="د کتاب نوم *" value={form.title} onChange={(v) => update("title", v)} />
           <Field label="مصنف *" value={form.author} onChange={(v) => update("author", v)} />
           
-          {/* د الماريو (فنونو) انتخاب */}
           <div>
             <label className="mb-1 block text-xs font-bold text-emerald-900">المارۍ (فن) *</label>
             <select
@@ -139,7 +163,6 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
             </select>
           </div>
 
-          {/* د متحرکو اصولو بکس */}
           <Field 
             label="ځانګړی اصول (مثلاً: سورة, المقصد)" 
             value={form.customRule} 
@@ -156,7 +179,6 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
           />
         </div>
 
-        {/* د څو ټوکه کتابونو لپاره فولډر سيسټم */}
         <div className="mt-3 flex flex-col sm:flex-row items-start sm:items-center gap-4 rounded-xl border border-emerald-900/10 bg-emerald-50/50 p-3">
           <label className="flex items-center gap-2 text-sm font-bold text-emerald-900 cursor-pointer">
             <input
@@ -214,7 +236,7 @@ export default function UploadModal({ open, onClose, onUploaded }: Props) {
             className="w-full rounded-xl border border-amber-900/20 bg-white/80 p-3 font-arabic text-sm focus:border-emerald-700 focus:outline-none"
           />
           <div className="mt-1 text-[11px] text-amber-900/70">
-            د متن طول: {form.text.length.toLocaleString("ar")} توري
+            د متن طول: {(form.text || "").length.toLocaleString("ar")} توري
           </div>
         </div>
 
