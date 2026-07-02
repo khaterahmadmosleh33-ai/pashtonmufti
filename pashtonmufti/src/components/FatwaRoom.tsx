@@ -15,7 +15,7 @@ type HistoryItem = {
   at: number;
 };
 
-// د لومړي ځل فرعي پوښتنې (کله چي لا هيڅ پوښتنه نه وي سوې)
+// د لومړي ځل فرعي پوښتني (کله چي لا هيڅ پوښتنه نه وي سوې)
 const initialSuggestedQuestions = [
   "د اوبو د نه موندلو په صورت کي د تيمم حکم څه دی؟",
   "د جمعې لمانځه شرطونه کوم دي",
@@ -68,13 +68,13 @@ export default function FatwaRoom() {
   const [error, setError] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   
-  // د هر کاروونکي لپاره د پوښتنو تر بکس لاندي د ۵ متحرکو مسايلو حالت
+  // د هر کاروونکي لپاره د پوښتنو تر بکس لاندي د ۵ متحرکو مسایلو حالت
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>(initialSuggestedQuestions);
   const askBoxRef = useRef<HTMLDivElement>(null);
 
-  // 🔒 يوازي د دغې خوني د سټايلونو لپاره ځانګړي متغیرونه (Scope Isolated State)
-  const [siteFont, setSiteFont] = useState('"Cairo", "Noto Naskh Arabic", sans-serif');
-  const [headingFont, setHeadingFont] = useState('"Cairo Black", "Cairo", sans-serif');
+  // 🔒 يوازي د دغې خوني د سټایلونو لپاره ځانګړي متغیرونه چي له LocalStorage څخه خالي ابتداء کيږي ترڅو د اډمن نړيوال اصول ګډوډ نه کړي
+  const [siteFont, setSiteFont] = useState(() => localStorage.getItem("mufti_user_font_override") || "");
+  const [headingFont, setHeadingFont] = useState(() => localStorage.getItem("mufti_user_heading_font_override") || "");
   const [themeMain, setThemeMain] = useState("#0f3d2e");
   const [themeLight, setThemeLight] = useState("#14533f");
   const [wallBg, setWallBg] = useState("transparent");
@@ -102,20 +102,18 @@ export default function FatwaRoom() {
       if (userFont) setSiteFont(userFont);
       if (userHeadingFont) setHeadingFont(userHeadingFont);
 
-      // ۲. که کاروونکي پخپله خوښه فونټ نه وي بدل کړی، له ډېټابېس (اډمن ډيفالټونو) څخه غوښتنه کوو
-      if (!userFont || !userHeadingFont) {
-        fetch(`${import.meta.env.VITE_API_BASE || ''}/api/global-settings`)
-          .then(res => res.json())
-          .then(data => {
-            if (data) {
-              if (!userFont && data.default_site_font) setSiteFont(data.default_site_font);
-              if (!userHeadingFont && data.default_heading_font) setHeadingFont(data.default_heading_font);
-              if (data.theme_main) setThemeMain(data.theme_main);
-              if (data.theme_light) setThemeLight(data.theme_light);
-            }
-          })
-          .catch(e => console.error("ډېټابېس څخه د ډيفالټونو په لوډولو کي ستونزه پېښه سوه:", e));
-      }
+      // ۲. په شاليد کي له ډيټابيس (اډمن ډيفالټونو) څخه غوښتنه کوو ترڅو په سټیټ کي د PDF او تنظيماتو همغږي پاتي سي
+      fetch(`${import.meta.env.VITE_API_BASE || ''}/api/global-settings`)
+        .then(res => res.json())
+        .then(data => {
+          if (data) {
+            if (!userFont && data.default_site_font) setSiteFont(data.default_site_font);
+            if (!userHeadingFont && data.default_heading_font) setHeadingFont(data.default_heading_font);
+            if (data.theme_main) setThemeMain(data.theme_main);
+            if (data.theme_light) setThemeLight(data.theme_light);
+          }
+        })
+        .catch(e => console.error("ډيټابيس څخه د ډيفالټونو په لوډولو کي ستونزه پېښه سوه:", e));
 
       // د نورو عمومي رنګونو او پس منظرونو راوړل
       const tm = localStorage.getItem("mufti_theme_main");
@@ -137,7 +135,7 @@ export default function FatwaRoom() {
     }
   }, []);
 
-  // د ژوندي ټايپينګ هوښیار او روان ماشين
+  // د ژوندي ټایپينګ هوښیار او روان ماشین
   const ask = async (q: string) => {
     if (!q.trim() || loading) return;
     setError(null);
@@ -236,8 +234,12 @@ export default function FatwaRoom() {
   const waitForPdfRender = () => new Promise((resolve) => setTimeout(resolve, 180));
 
   const handlePrintPDF = async (fatwa: Fatwa, questionText: string) => {
-    const bodyF = siteFont || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
-    const headF = headingFont || bodyF;
+    // که سټیټ لا چارج سوی نه وي، له جاري نړيوالو تغيیر موندونکو څخه د خط نوم اخلو ترڅو پی ډی ایف خراب نه سي
+    const computedSiteFont = siteFont || getComputedStyle(document.documentElement).getPropertyValue('--site-font').trim();
+    const computedHeadingFont = headingFont || getComputedStyle(document.documentElement).getPropertyValue('--heading-font').trim();
+
+    const bodyF = computedSiteFont || '"Noto Naskh Arabic", "Scheherazade New", "Amiri", serif';
+    const headF = computedHeadingFont || bodyF;
     const tColor = themeMain || "#0f3d2e";
 
     const question = escapePdfText(questionText || "");
@@ -361,16 +363,21 @@ export default function FatwaRoom() {
     } finally { host.remove(); }
   };
   
+  // د متحرک سټایل جوړول ترڅو د خالي براوزر دپاره نړيوال اصول تر پښو لاندي نه کړي
+  const dynamicStyle: React.CSSProperties = {
+    '--theme-main': themeMain, 
+    '--theme-light': themeLight,
+    fontFamily: siteFont ? siteFont : "inherit",
+    background: floorBg, 
+    minHeight: "100vh" 
+  };
+
+  // يوازې هغه وخت سټایلونه انلاين انجيکټ کوو چي شتون ولري، ترڅو په خالي حالت کي د App.tsx ډيفالټونه په اتومات ډول کار وکړي
+  if (siteFont) dynamicStyle['--site-font'] = siteFont;
+  if (headingFont) dynamicStyle['--heading-font'] = headingFont;
+
   return (
-    <div style={{ 
-      '--site-font': siteFont, 
-      '--heading-font': headingFont, 
-      '--theme-main': themeMain, 
-      '--theme-light': themeLight,
-      fontFamily: siteFont,
-      background: floorBg, 
-      minHeight: "100vh" 
-    } as React.CSSProperties}>
+    <div style={dynamicStyle}>
       <div>
         <Hero onAsk={scrollToAsk} />
       </div>
