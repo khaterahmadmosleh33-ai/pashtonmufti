@@ -1,4 +1,4 @@
-// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د ټولو خونو د مدګم کولو قفل سوې نسخه.
+// د اډمن پينل — د کتابونو د قطار حالت، د Worker معلومات، اپلوډ موډال، د سايټ تنظيمات، د اې آی مغز او د ټولو خونو د مدغم کولو قفل سوې نسخه.
 
 import { useEffect, useState } from "react";
 import { chunkingPipeline } from "../data/pipeline";
@@ -192,7 +192,7 @@ export default function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
 
-  // 🔒 د اډمن پينل د خپلواکه رنګ او خطونو پلي کول چي د بلې خوني په بدلېدو خراب نه سي
+  // 🔒 د اډمن پينل د خپلواکه رنګ او خطونو پلي کول چي د بلي خوني په بدليدو خراب نه سي
   useEffect(() => {
     const savedAdminFont = localStorage.getItem("admin_font") || '"Cairo", sans-serif';
     const savedAdminThemeMain = localStorage.getItem("admin_theme_main") || "#0f3d2e";
@@ -212,7 +212,7 @@ export default function AdminPanel() {
       setBooks(b);
     } catch (e) {
       console.error(e);
-      setError(e instanceof Error ? e.message : "د اډمن ډيټا راپورته نه سوې.");
+      setError(e instanceof Error ? e.message : "د اډمن ډيټا راپورته نه سوه.");
     } finally {
       setLoading(false);
     }
@@ -330,7 +330,7 @@ export default function AdminPanel() {
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" />
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" style={{ animationDelay: "0.2s" }} />
         <span className="pulse-dot mx-1 h-3 w-3 rounded-full bg-emerald-700" style={{ animationDelay: "0.4s" }} />
-        <span className="mr-3 text-sm">د اډمن ډېټا راپورته کول…</span>
+        <span className="mr-3 text-sm">د اډمن ډيټا راپورته کول…</span>
       </div>
     );
   }
@@ -571,7 +571,7 @@ function AllBooksView({ stats, books }: { stats: Stats; books: BookStatus[] }) {
               })}
               {books.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-amber-900/70">لا تر اوسه کدام کتاب نه دی اپلوډ سوی.</td>
+                  <td colSpan={7} className="px-6 py-10 text-center text-amber-900/70">لا تر اوسه کوم کتاب نه دی اپلوډ سوی.</td>
                 </tr>
               )}
             </tbody>
@@ -618,7 +618,7 @@ function LibraryView({ books, refresh }: { books: BookStatus[], refresh: () => v
   return (
     <div className="space-y-6">
       <div className="fatwa-card rounded-2xl p-8">
-        <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--admin-theme-main, #0f3d2e)" }}>📚 د کتابتون، فنونو او مذهبونو اداره</h3>
+        <h3 className="mb-6 text-2xl font-bold" style={{ color: "var(--admin-theme-main, #0f3d2e)" }}>📚 د کتابتون, فنونو او مذهبونو اداره</h3>
         <div className="mb-8 rounded-2xl border border-emerald-900/20 bg-emerald-50/50 p-5">
           <label className="mb-2 block text-sm font-bold text-emerald-900">نوی فن (المارۍ يا فرعي فولډر) جوړول:</label>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
@@ -733,7 +733,7 @@ function AiRulesView() {
         </div>
         <div>
           <h4 className="mb-4 text-lg font-bold text-emerald-900">موجوده فعال او غير فعال قوانين:</h4>
-          {loading ? ( <div className="text-sm text-emerald-700">قوانين راټوليږي...</div> ) : rules.length === 0 ? ( <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">تر اوسه کدام قانون نه دی ثبت سوی.</div> ) : (
+          {loading ? ( <div className="text-sm text-emerald-700">قوانين راټوليږي...</div> ) : rules.length === 0 ? ( <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">تر اوسه کوم قانون نه دی ثبت سوی.</div> ) : (
             <div className="space-y-3">
               {rules.map((rule, index) => (
                 <div key={rule.id} className={`flex flex-col justify-between gap-4 rounded-xl border p-4 shadow-sm transition-all md:flex-row md:items-center ${rule.is_active ? 'border-emerald-200 bg-white' : 'border-gray-200 bg-gray-50 opacity-75'}`}>
@@ -836,7 +836,7 @@ function SettingsView() {
       .catch(e => console.error("ډېټابېس څخه د تنظيماتو د راوړلو پر مهال خطا پېښه سوه:", e));
   }, []);
 
-  // 🔒 ډېټابېس ته د نوي امر د قفل کولو نوي ځواکمن تابع
+  // 🔒 ډېټابېس ته د نوي امر د قفل کولو ځواکمن تابع
   const saveToDb = async (updatedFields: any) => {
     try {
       const baseUrl = import.meta.env.VITE_API_BASE || "";
@@ -856,6 +856,7 @@ function SettingsView() {
   const handleMuftiBodyFont = async (val: string) => {
     document.documentElement.style.setProperty("--site-font", val);
     localStorage.setItem("mufti_font", val);
+    localStorage.setItem("mufti_user_font_override", val); // د سمدستي هماهنګۍ لپاره د اډمن خپل کاروونکی اووررایډ هم اپډېټ کوو
     await saveToDb({ default_site_font: val });
     setDbSettings((prev: any) => ({ ...prev, default_site_font: val }));
   };
@@ -863,6 +864,7 @@ function SettingsView() {
   const handleMuftiHeadingFont = async (val: string) => {
     document.documentElement.style.setProperty("--heading-font", val);
     localStorage.setItem("mufti_heading_font", val);
+    localStorage.setItem("mufti_user_heading_font_override", val); // د سمدستي هماهنګۍ لپاره د اډمن خپل کاروونکی اووررایډ هم اپډېټ کوو
     await saveToDb({ default_heading_font: val });
     setDbSettings((prev: any) => ({ ...prev, default_heading_font: val }));
   };
@@ -996,7 +998,7 @@ function SettingsView() {
       {/* د اډمن پينل د خپل مېز خپلواکه بڼه */}
       <div className="fatwa-card rounded-2xl p-8 border border-amber-950/10 bg-amber-50/10">
         <h3 className="mb-2 text-2xl font-bold text-emerald-950">⚙️ د اډمن پينل د خپل مېز مستقل سټايلونه</h3>
-        <p className="mb-6 text-xs text-amber-900/70">له دغه ځایه يوه کلمه هم پر عامه ننداره اغېزه ne کوي، يوازي ستا د اډمن پينل مېز په کمال باسي.</p>
+        <p className="mb-6 text-xs text-amber-900/70">له دغه ځایه يوه کلمه هم پر عامه ننداره اغېزه نه کوي، يوازي ستا د اډمن پينل مېز په کمال باسي.</p>
         
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
