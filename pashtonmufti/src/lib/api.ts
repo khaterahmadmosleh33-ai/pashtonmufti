@@ -11,7 +11,7 @@ export const isLiveBackend = Boolean(API_BASE);
 function requireApiBase() {
   if (!API_BASE) {
     throw new Error(
-      "VITE_API_BASE نه دی ټاکل سوې. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
+      "VITE_API_BASE نه دی ټاکل سوی دی. اول حقيقي Express سرور چالان کړی او frontend ته د API ادرس ورکړی."
     );
   }
 }
@@ -27,7 +27,7 @@ function getAuthHeaders(isJson = true) {
   return headers;
 }
 
-// 🛡️ د ځواب په نوې نسخه کي د اړونده پوښتنو کالم (suggestedQuestions) ور زيات سو
+// 🛡️ د ځواب په نوي نسخه کي د اړونده پوښتنو کالم (suggestedQuestions) ور زيات سو
 export type AskResponse = Fatwa & { 
   model?: string; 
   latency_ms?: number;
@@ -171,6 +171,7 @@ export async function getFatwaHistory(limit = 20): Promise<AskResponse[]> {
   }));
 }
 
+// 👑 د الماريو او کټګوريو د راوړلو پوره او صادره سوې باوري تابع چي ورسيل يې غوښتنه کوله
 export async function fetchCategories() {
   requireApiBase();
   const res = await fetch(`${API_BASE}/api/admin/categories`, {
