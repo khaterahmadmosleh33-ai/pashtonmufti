@@ -1,4 +1,4 @@
-// د «پښتون مفتي» اصلي اپليکيشن (نسخهٔ عیار سوې او خوندي).
+// د «پښتون مفتي» اصلي اپليکيشن (نسخهٔ عیار سوې، نړيواله او کاملاً خوندي).
 
 import { useEffect, useState } from "react";
 import Header from "./components/Header";
@@ -18,6 +18,7 @@ export default function App() {
 
   // کله چي اپليکېشن چالان سي، خوندي سوي رنګونه، فونټونه او امنيت تطبيقوي
   useEffect(() => {
+    // ۱. لومړی په ځايي ډول د کاروونکي خپل اووررایډونه (LocalStorage) ګورو ترڅو سمدستي پلي سي
     const savedFont = localStorage.getItem("mufti_font");
     const savedHeadingFont = localStorage.getItem("mufti_heading_font");
     const savedThemeMain = localStorage.getItem("mufti_theme_main");
@@ -33,6 +34,36 @@ export default function App() {
       document.documentElement.style.setProperty("--theme-main", savedThemeMain);
       document.documentElement.style.setProperty("--theme-light", savedThemeLight);
     }
+
+    // ۲. په شاليد کي د اډمن نړيوال ډيفالټونه له بېک انډ څخه راوباسو (د خالي براوزرونو دپاره ثبات)
+    const loadGlobalSettings = async () => {
+      try {
+        const apiBase = import.meta.env.VITE_API_BASE || "";
+        const response = await fetch(`${apiBase}/api/global-settings`);
+        
+        if (response.ok) {
+          const settings = await response.json();
+          
+          // که کاروونکي پخپل موبایل کي شخصي انتخاب نه وي کړی، د اډمن د ډېټابېس فونټونه لګول کيږي
+          if (!savedFont && settings.default_site_font) {
+            document.documentElement.style.setProperty("--site-font", settings.default_site_font);
+          }
+          if (!savedHeadingFont && settings.default_heading_font) {
+            document.documentElement.style.setProperty("--heading-font", settings.default_heading_font);
+          }
+          if (!savedThemeMain && settings.theme_main) {
+            document.documentElement.style.setProperty("--theme-main", settings.theme_main);
+          }
+          if (!savedThemeLight && settings.theme_light) {
+            document.documentElement.style.setProperty("--theme-light", settings.theme_light);
+          }
+        }
+      } catch (error) {
+        console.error("نړيوال تنظيمات له بېک انډ څخه چارج نه سول:", error);
+      }
+    };
+
+    loadGlobalSettings();
 
     // 🛡️ د ننوتلو خوندي چک: که اډمن لاګ ان نه وي، په اتومات ډول هشت پاکوي او د مفتي خونې ته ځي
     const token = localStorage.getItem("mufti_token");
